@@ -5,7 +5,45 @@
 *.slo
 *.lo
 *.o
+*.recipe
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
 *.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+Generated\ Files/
 
 # Precompiled Headers
 *.gch
@@ -30,3 +68,17 @@
 *.exe
 *.out
 *.app
+
+# VS local files/folders
+.vs/
+*.user
+*.suo
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
