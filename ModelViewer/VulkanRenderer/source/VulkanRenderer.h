@@ -1,18 +1,22 @@
 #pragma once
 
+#include "base/Renderer_Base.h"
+
 namespace Vulkan {
 
-class Renderer {
+class RendererImpl;
+
+class Renderer : public Graphics::Renderer_Base {
 public:
     Renderer();
-    ~Renderer();
+    virtual ~Renderer();
 
-    virtual Graphics::GraphicsError Initialize();
+    virtual Graphics::GraphicsError Initialize(Graphics::API_Base *api);
     virtual Graphics::GraphicsError Finalize();
     virtual Graphics::GraphicsError Update(f32 deltaTime);
 
 private:
-
+    RendererImpl *m_impl;
 };
 
 } // namespace Vulkan

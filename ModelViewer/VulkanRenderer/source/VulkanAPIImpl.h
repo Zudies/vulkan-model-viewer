@@ -11,11 +11,10 @@ public:
 
     Graphics::GraphicsError Initialize();
     Graphics::GraphicsError Finalize();
-    Graphics::GraphicsError Update(f32 deltaTime);
 
 private:
+    friend class RendererImpl;
 
-    VkInstance m_vkInstance;
 };
 
 } // namespace Vulkan

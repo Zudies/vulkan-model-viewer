@@ -26,8 +26,4 @@ Graphics::GraphicsError API::Finalize() {
     return m_impl->Finalize();
 }
 
-Graphics::GraphicsError API::Update(f32 deltaTime) {
-    return Graphics::GraphicsError::OK;
-}
-
 } // namespace Vulkan

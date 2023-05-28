@@ -2,15 +2,21 @@
 
 namespace Vulkan {
 
+class API;
+class APIImpl;
+
 class RendererImpl {
 public:
     RendererImpl();
     ~RendererImpl();
 
-    void Initialize();
-    void Finalize();
+    Graphics::GraphicsError Initialize(API *api);
+    Graphics::GraphicsError Finalize();
+    Graphics::GraphicsError Update(f32 deltaTime);
 
 private:
+    APIImpl *m_api;
+    VkInstance m_vkInstance;
 
 };
 

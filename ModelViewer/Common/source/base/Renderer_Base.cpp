@@ -6,4 +6,7 @@ namespace Graphics {
 Renderer_Base::Renderer_Base() {
 }
 
+Renderer_Base::~Renderer_Base() {
+}
+
 } // namespace Graphics

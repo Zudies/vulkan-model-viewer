@@ -13,7 +13,8 @@ public:
 
     virtual Graphics::GraphicsError Initialize();
     virtual Graphics::GraphicsError Finalize();
-    virtual Graphics::GraphicsError Update(f32 deltaTime);
+
+    APIImpl *GetImpl() const { return m_impl; }
 
 private:
 
