@@ -3,9 +3,80 @@
 //
 
 #include "Common.h"
+#include "ErrorCodes.h"
+#include "VulkanAPI.h"
 #include <iostream>
+#include <windows.h>
+
+namespace {
+wchar_t const CLASS_NAME[] = L"Test Runner Class";
+wchar_t const WINDOW_TITLE[] = L"Test Runner";
+HWND g_hwnd = NULL;
+HINSTANCE g_hinstance = NULL;
+bool g_close = false;
+}
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+    case WM_CLOSE:
+        g_close = true;
+        break;
+    }
+
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+Graphics::GraphicsError CreateRenderWindow() {
+    WNDCLASS wc = { };
+
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = g_hinstance;
+    wc.lpszClassName = CLASS_NAME;
+
+    RegisterClass(&wc);
+
+    g_hwnd = CreateWindowEx(
+        0,                              // Optional window styles.
+        CLASS_NAME,                     // Window class
+        WINDOW_TITLE,                   // Window text
+        WS_OVERLAPPEDWINDOW,            // Window style
+
+        // Size and position
+        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+
+        NULL,       // Parent window    
+        NULL,       // Menu
+        g_hinstance,  // Instance handle
+        NULL        // Additional application data
+    );
+
+    if (g_hwnd == NULL)
+    {
+        return Graphics::GraphicsError::UNKNOWN;
+    }
+
+    ShowWindow(g_hwnd, SW_NORMAL);
+
+    return Graphics::GraphicsError::OK;
+}
 
 int main()
 {
-    std::cout << "Hello World!\n";
+    CreateRenderWindow();
+
+    Graphics::API_Base *api = new Vulkan::API;
+    api->Initialize();
+
+    while (!g_close) {
+        MSG msg;
+        if (PeekMessage(&msg, g_hwnd, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        //TODO:
+        //renderer->Update(0);
+    }
+
+    return 0;
 }

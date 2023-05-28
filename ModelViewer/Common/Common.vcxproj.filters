@@ -12,6 +12,9 @@
     <Filter Include="Source Files\source">
       <UniqueIdentifier>{54106e68-5e55-41ba-a00b-a3449d13332f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\source\base">
+      <UniqueIdentifier>{34f14c53-df09-443d-9851-62b95a2bd176}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -23,10 +26,22 @@
     <ClInclude Include="source\ErrorCodes.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\base\API_Base.h">
+      <Filter>Source Files\source\base</Filter>
+    </ClInclude>
+    <ClInclude Include="source\base\Renderer_Base.h">
+      <Filter>Source Files\source\base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base\API_Base.cpp">
+      <Filter>Source Files\source\base</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base\Renderer_Base.cpp">
+      <Filter>Source Files\source\base</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

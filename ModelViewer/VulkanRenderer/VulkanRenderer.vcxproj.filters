@@ -17,7 +17,16 @@
     <ClInclude Include="pch.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="source\Renderer.h">
+    <ClInclude Include="source\VulkanRenderer.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanAPI.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanAPIImpl.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanRendererImpl.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
   </ItemGroup>
@@ -25,8 +34,20 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="source\Renderer.cpp">
+    <ClCompile Include="source\VulkanRenderer.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
+    <ClCompile Include="source\VulkanAPI.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanAPIImpl.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanRendererImpl.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="$(VULKAN_SDK)\Lib\vulkan-1.lib" />
   </ItemGroup>
 </Project>

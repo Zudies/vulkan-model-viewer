@@ -81,6 +81,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="source\base\API_Base.h" />
+    <ClInclude Include="source\base\Renderer_Base.h" />
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\ErrorCodes.h" />
   </ItemGroup>
@@ -89,6 +91,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\base\API_Base.cpp" />
+    <ClCompile Include="source\base\Renderer_Base.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

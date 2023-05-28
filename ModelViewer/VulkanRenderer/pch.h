@@ -10,5 +10,6 @@
 // add headers that you want to pre-compile here
 #include "Common.h"
 #include "ErrorCodes.h"
+#include "vulkan/vulkan.h"
 
 #endif //PCH_H

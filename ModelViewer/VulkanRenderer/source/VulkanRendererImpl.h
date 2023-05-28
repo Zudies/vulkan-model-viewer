@@ -2,10 +2,10 @@
 
 namespace Vulkan {
 
-class Renderer {
+class RendererImpl {
 public:
-    Renderer();
-    ~Renderer();
+    RendererImpl();
+    ~RendererImpl();
 
     void Initialize();
     void Finalize();
