@@ -16,7 +16,7 @@ public:
 
 private:
     APIImpl *m_api;
-    VkInstance m_vkInstance;
+    
 
 };
 

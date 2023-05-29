@@ -6,36 +6,31 @@
 namespace Vulkan {
 
 RendererImpl::RendererImpl()
-  : m_api(nullptr),
-    m_vkInstance(0) {
+  : m_api(nullptr) {
 }
 
 RendererImpl::~RendererImpl() {
 }
 
 Graphics::GraphicsError RendererImpl::Initialize(API *api) {
-    ASSERT(!m_vkInstance);
     m_api = api->GetImpl();
+    ASSERT(m_api->m_vkInstance);
 
-    VkApplicationInfo appInfo{};
-
-
-    VkInstanceCreateInfo createInfo{};
-
-    auto result = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
+    
 
     return Graphics::GraphicsError::OK;
 }
 
 Graphics::GraphicsError RendererImpl::Finalize() {
-    ASSERT(m_vkInstance);
+    ASSERT(m_api->m_vkInstance);
 
     return Graphics::GraphicsError::OK;
 
 }
 
 Graphics::GraphicsError RendererImpl::Update(f32 deltaTime) {
-    ASSERT(m_vkInstance);
+    ASSERT(m_api->m_vkInstance);
+    UNUSED_PARAM(deltaTime);
 
     return Graphics::GraphicsError::OK;
 }

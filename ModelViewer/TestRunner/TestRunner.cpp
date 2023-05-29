@@ -5,6 +5,7 @@
 #include "Common.h"
 #include "ErrorCodes.h"
 #include "VulkanAPI.h"
+#include "VulkanRenderer.h"
 #include <iostream>
 #include <windows.h>
 
@@ -64,8 +65,13 @@ int main()
 {
     CreateRenderWindow();
 
+    LOG_INFO("Test Runner: Using Vulkan Renderer\n");
     Graphics::API_Base *api = new Vulkan::API;
-    api->Initialize();
+    auto result = api->Initialize();
+    ASSERT_MSG(result == Graphics::GraphicsError::OK, L"API Initialization Failed");
+
+    Graphics::Renderer_Base *renderer = new Vulkan::Renderer;
+    renderer->Initialize(api);
 
     while (!g_close) {
         MSG msg;
@@ -74,8 +80,8 @@ int main()
             DispatchMessage(&msg);
         }
 
-        //TODO:
-        //renderer->Update(0);
+        //TODO: measure frame time to calculate dt
+        renderer->Update(1.0f/60);
     }
 
     return 0;
