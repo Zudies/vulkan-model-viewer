@@ -12,7 +12,7 @@ public:
 
     Graphics::GraphicsError Initialize(API *api);
     Graphics::GraphicsError Finalize();
-    Graphics::GraphicsError Update(f32 deltaTime);
+    Graphics::GraphicsError Update(f64 deltaTime);
 
 private:
     APIImpl *m_api;

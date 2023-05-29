@@ -13,7 +13,7 @@ public:
 
     virtual Graphics::GraphicsError Initialize(Graphics::API_Base *api);
     virtual Graphics::GraphicsError Finalize();
-    virtual Graphics::GraphicsError Update(f32 deltaTime);
+    virtual Graphics::GraphicsError Update(f64 deltaTime);
 
 private:
     RendererImpl *m_impl;

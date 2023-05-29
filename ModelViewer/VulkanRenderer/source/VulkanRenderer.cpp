@@ -26,7 +26,7 @@ Graphics::GraphicsError Renderer::Finalize() {
     return m_impl->Finalize();
 }
 
-Graphics::GraphicsError Renderer::Update(f32 deltaTime) {
+Graphics::GraphicsError Renderer::Update(f64 deltaTime) {
     ASSERT(m_impl);
     return m_impl->Update(deltaTime);
 }

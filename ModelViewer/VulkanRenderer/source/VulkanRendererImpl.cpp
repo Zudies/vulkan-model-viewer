@@ -28,7 +28,7 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
 }
 
-Graphics::GraphicsError RendererImpl::Update(f32 deltaTime) {
+Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     ASSERT(m_api->m_vkInstance);
     UNUSED_PARAM(deltaTime);
 

@@ -4,6 +4,7 @@
 
 #include "Common.h"
 #include "ErrorCodes.h"
+#include "WindowsFrameRateController.h"
 #include "VulkanAPI.h"
 #include "VulkanRenderer.h"
 #include <iostream>
@@ -73,6 +74,17 @@ int main()
     Graphics::Renderer_Base *renderer = new Vulkan::Renderer;
     renderer->Initialize(api);
 
+    Performance::FrameRateController_Base *frameController = new Performance::WindowsFrameRateController;
+    Performance::FrameRateControllerSettings frcSettings{};
+
+    // Set the target FPS of the test window: 1 / Desired frame rate
+    // Set to 0 to unlock frame rate
+    frcSettings.DesiredFrameTime = 1.0 / 60.0;
+
+    frameController->Initialize(&frcSettings);
+
+    frameController->Reset();
+    f64 timeSinceLastFrame = frcSettings.DesiredFrameTime;
     while (!g_close) {
         MSG msg;
         if (PeekMessage(&msg, g_hwnd, 0, 0, PM_REMOVE)) {
@@ -80,8 +92,13 @@ int main()
             DispatchMessage(&msg);
         }
 
-        //TODO: measure frame time to calculate dt
-        renderer->Update(1.0f/60);
+        timeSinceLastFrame += frameController->GetElapsedTime();
+        if (timeSinceLastFrame >= frcSettings.DesiredFrameTime) {
+            // Run a frame
+            renderer->Update(timeSinceLastFrame);
+
+            timeSinceLastFrame = 0.0;
+        }
     }
 
     return 0;

@@ -82,10 +82,13 @@
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="source\base\API_Base.h" />
+    <ClInclude Include="source\base\FrameRateController_Base.h" />
     <ClInclude Include="source\base\Renderer_Base.h" />
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\ErrorCodes.h" />
     <ClInclude Include="source\Version.h" />
+    <ClInclude Include="source\WindowsFrameRateController.h" />
+    <ClInclude Include="source\WindowsFrameRateControllerImpl.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -93,8 +96,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="source\base\API_Base.cpp" />
+    <ClCompile Include="source\base\FrameRateController_Base.cpp" />
     <ClCompile Include="source\base\Renderer_Base.cpp" />
     <ClCompile Include="source\Common.cpp" />
+    <ClCompile Include="source\WindowsFrameRateController.cpp" />
+    <ClCompile Include="source\WindowsFrameRateControllerImpl.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

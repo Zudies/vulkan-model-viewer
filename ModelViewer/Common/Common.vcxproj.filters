@@ -35,6 +35,15 @@
     <ClInclude Include="source\Version.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\base\FrameRateController_Base.h">
+      <Filter>Source Files\source\base</Filter>
+    </ClInclude>
+    <ClInclude Include="source\WindowsFrameRateController.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\WindowsFrameRateControllerImpl.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -47,6 +56,15 @@
       <Filter>Source Files\source\base</Filter>
     </ClCompile>
     <ClCompile Include="source\Common.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base\FrameRateController_Base.cpp">
+      <Filter>Source Files\source\base</Filter>
+    </ClCompile>
+    <ClCompile Include="source\WindowsFrameRateController.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\WindowsFrameRateControllerImpl.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>
