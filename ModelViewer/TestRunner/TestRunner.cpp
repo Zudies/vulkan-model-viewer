@@ -8,6 +8,7 @@
 #include "VulkanAPI.h"
 #include "VulkanRenderer.h"
 #include <iostream>
+#include <thread>
 #include <windows.h>
 
 namespace {
@@ -85,6 +86,8 @@ int main()
 
     frameController->Reset();
     f64 timeSinceLastFrame = frcSettings.DesiredFrameTime;
+    f64 fps = 0.0;
+    f64 fpsUpdateTimer = 0.0;
     while (!g_close) {
         MSG msg;
         if (PeekMessage(&msg, g_hwnd, 0, 0, PM_REMOVE)) {
@@ -97,7 +100,21 @@ int main()
             // Run a frame
             renderer->Update(timeSinceLastFrame);
 
+            // Update FPS (smooth the fps using 20% of current)
+            fps = fps * 0.8 + 0.2 / timeSinceLastFrame;
+
+            fpsUpdateTimer += timeSinceLastFrame;
             timeSinceLastFrame = 0.0;
+        }
+        else if (!PeekMessage(&msg, g_hwnd, 0, 0, PM_NOREMOVE)) {
+            std::this_thread::yield();
+        }
+
+        if (fpsUpdateTimer >= 0.5) {
+            static wchar_t buffer[64];
+            swprintf_s(buffer, countof(buffer), L"%s (FPS: %6.2f)", WINDOW_TITLE, fps);
+            SetWindowText(g_hwnd, buffer);
+            fpsUpdateTimer = 0.0;
         }
     }
 

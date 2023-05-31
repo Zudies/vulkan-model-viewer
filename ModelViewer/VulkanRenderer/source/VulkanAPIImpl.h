@@ -23,6 +23,7 @@ private:
 private:
     VkInstance m_vkInstance;
     VkApplicationInfo m_vkAppInfo;
+    VkDebugUtilsMessengerEXT m_vkDebugMessenger;
 
     typedef std::vector<char const*> StringLiteralArray;
     StringLiteralArray m_vkExtensionsList;

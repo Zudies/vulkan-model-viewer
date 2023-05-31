@@ -66,7 +66,7 @@ typedef wchar_t char16;
 
 #pragma region Logger Macros
 #define LOG_INFO(format, ...) Logger::LogConsole(format, __VA_ARGS__)
-#define LOG_ERROR(format, ...) Logger::LogError(format, __VA_ARGS__)
+#define LOG_ERROR(format, ...) Logger::ErrorConsole(format, __VA_ARGS__)
 
 #if VERBOSE == 1
 #define LOG_VERBOSE(format, ...) Logger::LogConsole(format, __VA_ARGS__)
