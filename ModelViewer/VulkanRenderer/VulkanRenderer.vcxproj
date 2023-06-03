@@ -84,6 +84,7 @@
     <ClInclude Include="source\VulkanAPI.h" />
     <ClInclude Include="source\VulkanAPIImpl.h" />
     <ClInclude Include="source\VulkanErrorToGraphicsError.h" />
+    <ClInclude Include="source\VulkanPhysicalDevice.h" />
     <ClInclude Include="source\VulkanRenderer.h" />
     <ClInclude Include="source\VulkanRendererImpl.h" />
   </ItemGroup>
@@ -95,6 +96,7 @@
     <ClCompile Include="source\VulkanAPI.cpp" />
     <ClCompile Include="source\VulkanAPIImpl.cpp" />
     <ClCompile Include="source\VulkanErrorToGraphicsError.cpp" />
+    <ClCompile Include="source\VulkanPhysicalDevice.cpp" />
     <ClCompile Include="source\VulkanRenderer.cpp" />
     <ClCompile Include="source\VulkanRendererImpl.cpp" />
   </ItemGroup>

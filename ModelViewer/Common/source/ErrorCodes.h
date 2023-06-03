@@ -23,6 +23,9 @@ enum class GraphicsError {
     // The requested extension(s) is not supported
     NO_SUCH_EXTENSION,
 
+    // No suitable device that could run this application was found
+    NO_SUPPORTED_DEVICE,
+
 };
 
 } // namespace Graphics

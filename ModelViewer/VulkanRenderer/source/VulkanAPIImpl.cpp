@@ -94,55 +94,23 @@ Graphics::GraphicsError APIImpl::Initialize() {
     m_vkAppInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
     m_vkAppInfo.apiVersion = _queryInstanceVersion();
 
+    // Determine features that can be supported
     auto internalResult = _populateFeatureList();
     if (internalResult != Graphics::GraphicsError::OK) {
         return internalResult;
     }
 
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &m_vkAppInfo;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(m_vkExtensionsList.size());
-    createInfo.ppEnabledExtensionNames = m_vkExtensionsList.data();
-    createInfo.enabledLayerCount = static_cast<uint32_t>(m_vkLayersList.size());
-    createInfo.ppEnabledLayerNames = m_vkLayersList.data();
-
-#if USE_VK_VALIDATION
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    debugCreateInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    debugCreateInfo.messageType =
-        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    debugCreateInfo.pfnUserCallback = debugCallback;
-
-    createInfo.pNext = &debugCreateInfo;
-#endif
-
-    auto vkResult = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
-    if (vkResult != VK_SUCCESS) {
-        //TODO: Which errors can be handled?
-        return VulkanErrorToGraphicsError(vkResult);
+    // Create the vk instance
+    internalResult = _createInstance();
+    if (internalResult != Graphics::GraphicsError::OK) {
+        return internalResult;
     }
 
-#if USE_VK_VALIDATION
-    auto createDebugMessengerFn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkCreateDebugUtilsMessengerEXT");
-    if (createDebugMessengerFn) {
-        vkResult = createDebugMessengerFn(
-            m_vkInstance,
-            &debugCreateInfo,
-            nullptr,
-            &m_vkDebugMessenger);
+    // Iterate the physical devices and determine their capabilities
+    internalResult = _queryDevices();
+    if (internalResult != Graphics::GraphicsError::OK) {
+        return internalResult;
     }
-    else {
-        return Graphics::GraphicsError::NO_SUCH_EXTENSION;
-    }
-#endif
 
     return Graphics::GraphicsError::OK;
 }
@@ -161,6 +129,48 @@ Graphics::GraphicsError APIImpl::Finalize() {
     }
 
     return Graphics::GraphicsError::OK;
+}
+
+VulkanPhysicalDevice const *APIImpl::GetDevice(size_t index) const {
+    if (index < m_physicalDevices.size()) {
+        return &m_physicalDevices[index];
+    }
+    return nullptr;
+}
+
+VulkanPhysicalDevice const *APIImpl::FindSuitableDevice(Graphics::API_Base::FeatureList const &requiredFeatures, Graphics::API_Base::FeatureList const &optionalFeatures) const {
+    VulkanPhysicalDevice const *bestCandidate = nullptr;
+    i32 bestCandidateScore = -1;
+    
+    for (auto &device : m_physicalDevices) {
+        // Check that all required features are supported
+        bool allFeaturesSupported = true;
+        for (auto curFeature : requiredFeatures) {
+            if (!device.SupportsFeature(curFeature)) {
+                allFeaturesSupported = false;
+                break;
+            }
+        }
+        if (!allFeaturesSupported) {
+            continue;
+        }
+
+        // Count the number of optional features supported
+        i32 supportedFeatureCount = 0;
+        for (auto curFeature : optionalFeatures) {
+            if (device.SupportsFeature(curFeature)) {
+                ++supportedFeatureCount;
+            }
+        }
+
+        // Check if this is the new best candidate
+        if (supportedFeatureCount > bestCandidateScore) {
+            bestCandidate = &device;
+            bestCandidateScore = supportedFeatureCount;
+        }
+    }
+
+    return bestCandidate;
 }
 
 uint32_t APIImpl::_queryInstanceVersion() {
@@ -192,13 +202,15 @@ Graphics::GraphicsError APIImpl::_populateFeatureList() {
 
     // Check list of available layers
     uint32_t count;
-    auto vkResult = vkEnumerateInstanceLayerProperties(&count, nullptr);
-    if (vkResult != VK_SUCCESS) {
-        return VulkanErrorToGraphicsError(vkResult);
-    }
-
-    std::vector<VkLayerProperties> supportedLayers(count);
+    std::vector<VkLayerProperties> supportedLayers;
+    VkResult vkResult;
     do {
+        vkResult = vkEnumerateInstanceLayerProperties(&count, nullptr);
+        if (vkResult != VK_SUCCESS) {
+            return VulkanErrorToGraphicsError(vkResult);
+        }
+
+        supportedLayers.resize(count);
         vkResult = vkEnumerateInstanceLayerProperties(&count, supportedLayers.data());
     } while (vkResult == VK_INCOMPLETE);
     if (vkResult != VK_SUCCESS) {
@@ -233,13 +245,14 @@ Graphics::GraphicsError APIImpl::_populateFeatureList() {
     }
 
     // Check list of available instance extensions
-    vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-    if (vkResult != VK_SUCCESS) {
-        return VulkanErrorToGraphicsError(vkResult);
-    }
-
-    std::vector<VkExtensionProperties> supportedExtensions(count);
+    std::vector<VkExtensionProperties> supportedExtensions;
     do {
+        vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+        if (vkResult != VK_SUCCESS) {
+            return VulkanErrorToGraphicsError(vkResult);
+        }
+
+        supportedExtensions.resize(count);
         vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, supportedExtensions.data());
     } while (vkResult == VK_INCOMPLETE);
     if (vkResult != VK_SUCCESS) {
@@ -271,6 +284,88 @@ Graphics::GraphicsError APIImpl::_populateFeatureList() {
             }
         }
         ASSERT_MSG(extFound, L"Required Vulkan Extension %hs not supported\n", i);
+    }
+
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError APIImpl::_createInstance() {
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &m_vkAppInfo;
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(m_vkExtensionsList.size());
+    createInfo.ppEnabledExtensionNames = m_vkExtensionsList.data();
+    createInfo.enabledLayerCount = static_cast<uint32_t>(m_vkLayersList.size());
+    createInfo.ppEnabledLayerNames = m_vkLayersList.data();
+
+#if USE_VK_VALIDATION
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debugCreateInfo.messageSeverity =
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debugCreateInfo.messageType =
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debugCreateInfo.pfnUserCallback = debugCallback;
+
+    createInfo.pNext = &debugCreateInfo;
+#endif
+
+    auto vkResult = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
+    if (vkResult != VK_SUCCESS) {
+        //TODO: Which errors can be handled?
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+
+    LOG_INFO("VkInstance successfully created!\n");
+
+#if USE_VK_VALIDATION
+    auto createDebugMessengerFn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkCreateDebugUtilsMessengerEXT");
+    if (createDebugMessengerFn) {
+        vkResult = createDebugMessengerFn(
+            m_vkInstance,
+            &debugCreateInfo,
+            nullptr,
+            &m_vkDebugMessenger);
+    }
+    else {
+        return Graphics::GraphicsError::NO_SUCH_EXTENSION;
+    }
+#endif
+
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError APIImpl::_queryDevices() {
+    uint32_t deviceCount;
+    std::vector<VkPhysicalDevice> physicalDevices;
+    VkResult vkResult;
+
+    do {
+        vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
+        if (vkResult != VK_SUCCESS) {
+            return VulkanErrorToGraphicsError(vkResult);
+        }
+        if (deviceCount == 0) {
+            return Graphics::GraphicsError::NO_SUPPORTED_DEVICE;
+        }
+
+        physicalDevices.resize(deviceCount);
+        vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, physicalDevices.data());
+    } while (vkResult == VK_INCOMPLETE);
+    if (vkResult != VK_SUCCESS) {
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+
+    LOG_INFO("Found available devices:\n");
+    m_physicalDevices.resize(physicalDevices.size());
+    for (size_t i = 0; i < physicalDevices.size(); ++i) {
+        // Create VulkanPhysicalDevice and populate the physical device with queue info and features
+        m_physicalDevices[i].Initialize(this, &physicalDevices[i]);
     }
 
     return Graphics::GraphicsError::OK;

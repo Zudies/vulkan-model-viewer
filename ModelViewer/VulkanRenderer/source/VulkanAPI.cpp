@@ -26,4 +26,16 @@ Graphics::GraphicsError API::Finalize() {
     return m_impl->Finalize();
 }
 
+Graphics::PhysicalDevice const *API::GetDevice(size_t index) const {
+    ASSERT(m_impl);
+
+    return m_impl->GetDevice(index);
+}
+
+Graphics::PhysicalDevice const *API::FindSuitableDevice(Graphics::API_Base::FeatureList const &requiredFeatures, Graphics::API_Base::FeatureList const &optionalFeatures) const {
+    ASSERT(m_impl);
+
+    return m_impl->FindSuitableDevice(requiredFeatures, optionalFeatures);
+}
+
 } // namespace Vulkan

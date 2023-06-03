@@ -32,6 +32,9 @@
     <ClInclude Include="source\VulkanErrorToGraphicsError.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanPhysicalDevice.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -50,6 +53,9 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanErrorToGraphicsError.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanPhysicalDevice.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

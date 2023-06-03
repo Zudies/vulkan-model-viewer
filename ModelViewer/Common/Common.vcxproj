@@ -83,9 +83,11 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="source\base\API_Base.h" />
     <ClInclude Include="source\base\FrameRateController_Base.h" />
+    <ClInclude Include="source\base\PhysicalDevice.h" />
     <ClInclude Include="source\base\Renderer_Base.h" />
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\ErrorCodes.h" />
+    <ClInclude Include="source\FeaturesList.h" />
     <ClInclude Include="source\Version.h" />
     <ClInclude Include="source\WindowsFrameRateController.h" />
     <ClInclude Include="source\WindowsFrameRateControllerImpl.h" />
@@ -97,6 +99,7 @@
     </ClCompile>
     <ClCompile Include="source\base\API_Base.cpp" />
     <ClCompile Include="source\base\FrameRateController_Base.cpp" />
+    <ClCompile Include="source\base\PhysicalDevice.cpp" />
     <ClCompile Include="source\base\Renderer_Base.cpp" />
     <ClCompile Include="source\Common.cpp" />
     <ClCompile Include="source\WindowsFrameRateController.cpp" />

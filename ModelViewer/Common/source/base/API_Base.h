@@ -1,6 +1,10 @@
 #pragma once
 
+#include <vector>
+
 namespace Graphics {
+
+class PhysicalDevice;
 
 /*
   API class is responsible for initializing a graphics API, making its functions callable
@@ -11,11 +15,18 @@ namespace Graphics {
  */
 class API_Base {
 public:
+    typedef std::vector<char const*> FeatureList;
+
+public:
     API_Base();
     virtual ~API_Base() = 0;
 
     virtual GraphicsError Initialize() = 0;
     virtual GraphicsError Finalize() = 0;
+
+    //TODO: Improve FindSuitableDevice to include scores for optional features
+    virtual Graphics::PhysicalDevice const *GetDevice(size_t index) const = 0;
+    virtual Graphics::PhysicalDevice const *FindSuitableDevice(FeatureList const &requiredFeatures, FeatureList const &optionalFeatures) const = 0;
 
 };
 

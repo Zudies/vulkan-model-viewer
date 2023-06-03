@@ -44,6 +44,12 @@
     <ClInclude Include="source\WindowsFrameRateControllerImpl.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\base\PhysicalDevice.h">
+      <Filter>Source Files\source\base</Filter>
+    </ClInclude>
+    <ClInclude Include="source\FeaturesList.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -66,6 +72,9 @@
     </ClCompile>
     <ClCompile Include="source\WindowsFrameRateControllerImpl.cpp">
       <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base\PhysicalDevice.cpp">
+      <Filter>Source Files\source\base</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
