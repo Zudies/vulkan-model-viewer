@@ -11,15 +11,15 @@ public:
     APIImpl();
     ~APIImpl();
 
-    Graphics::GraphicsError Initialize();
+    Graphics::GraphicsError Initialize(Graphics::RendererRequirements *requirements);
     Graphics::GraphicsError Finalize();
 
-    VulkanPhysicalDevice const *GetDevice(size_t index) const;
-    VulkanPhysicalDevice const *FindSuitableDevice(Graphics::API_Base::FeatureList const &requiredFeatures, Graphics::API_Base::FeatureList const &optionalFeatures) const;
+    VulkanPhysicalDevice *GetDevice(size_t index);
+    VulkanPhysicalDevice *FindSuitableDevice(Graphics::RendererRequirements *requirements);
 
 private:
     uint32_t _queryInstanceVersion();
-    Graphics::GraphicsError _populateFeatureList();
+    Graphics::GraphicsError _populateFeatureList(Graphics::RendererRequirements *requirements);
     Graphics::GraphicsError _createInstance();
     Graphics::GraphicsError _queryDevices();
 
@@ -29,6 +29,8 @@ private:
 private:
     VkInstance m_vkInstance;
     VkApplicationInfo m_vkAppInfo;
+
+    bool m_useValidation;
     VkDebugUtilsMessengerEXT m_vkDebugMessenger;
 
     typedef std::vector<char const*> StringLiteralArray;

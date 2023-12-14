@@ -35,6 +35,9 @@
     <ClInclude Include="source\VulkanPhysicalDevice.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanFeaturesList.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -61,5 +64,10 @@
   </ItemGroup>
   <ItemGroup>
     <Library Include="$(VULKAN_SDK)\Lib\vulkan-1.lib" />
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="resource\model-viewer-renderer.json">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>

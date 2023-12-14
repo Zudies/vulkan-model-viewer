@@ -13,11 +13,11 @@ API::~API() {
     delete m_impl;
 }
 
-Graphics::GraphicsError API::Initialize() {
+Graphics::GraphicsError API::Initialize(Graphics::RendererRequirements *requirements) {
     ASSERT(!m_impl);
 
     m_impl = new APIImpl;
-    return m_impl->Initialize();
+    return m_impl->Initialize(requirements);
 }
 
 Graphics::GraphicsError API::Finalize() {
@@ -26,16 +26,16 @@ Graphics::GraphicsError API::Finalize() {
     return m_impl->Finalize();
 }
 
-Graphics::PhysicalDevice const *API::GetDevice(size_t index) const {
+Graphics::PhysicalDevice *API::GetDevice(size_t index) {
     ASSERT(m_impl);
 
     return m_impl->GetDevice(index);
 }
 
-Graphics::PhysicalDevice const *API::FindSuitableDevice(Graphics::API_Base::FeatureList const &requiredFeatures, Graphics::API_Base::FeatureList const &optionalFeatures) const {
+Graphics::PhysicalDevice *API::FindSuitableDevice(Graphics::RendererRequirements *requirements) {
     ASSERT(m_impl);
 
-    return m_impl->FindSuitableDevice(requiredFeatures, optionalFeatures);
+    return m_impl->FindSuitableDevice(requirements);
 }
 
 } // namespace Vulkan

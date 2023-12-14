@@ -6,17 +6,21 @@
 namespace Vulkan {
 
 RendererImpl::RendererImpl()
-  : m_api(nullptr) {
+  : m_api(nullptr),
+    m_device(0) {
 }
 
 RendererImpl::~RendererImpl() {
 }
 
-Graphics::GraphicsError RendererImpl::Initialize(API *api) {
+Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice *physicalDevice) {
     m_api = api->GetImpl();
     ASSERT(m_api->m_vkInstance);
+    ASSERT(physicalDevice);
 
-    
+    VkDeviceQueueCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    //createInfo.
 
     return Graphics::GraphicsError::OK;
 }

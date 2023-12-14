@@ -2,6 +2,7 @@
 #include "VulkanRenderer.h"
 #include "VulkanRendererImpl.h"
 #include "VulkanAPI.h"
+#include "VulkanPhysicalDevice.h"
 
 namespace Vulkan {
 
@@ -14,11 +15,11 @@ Renderer::~Renderer() {
     delete m_impl;
 }
 
-Graphics::GraphicsError Renderer::Initialize(Graphics::API_Base *api) {
+Graphics::GraphicsError Renderer::Initialize(Graphics::API_Base *api, Graphics::PhysicalDevice *physicalDevice) {
     ASSERT(!m_impl);
 
     m_impl = new RendererImpl;
-    return m_impl->Initialize(static_cast<API*>(api));
+    return m_impl->Initialize(static_cast<API*>(api), static_cast<VulkanPhysicalDevice*>(physicalDevice));
 }
 
 Graphics::GraphicsError Renderer::Finalize() {

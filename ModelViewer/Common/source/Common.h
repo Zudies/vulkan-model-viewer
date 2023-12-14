@@ -1,5 +1,6 @@
 #pragma once
 
+#define NOMINMAX
 #include <cassert>
 #include <cwchar>
 #include <stdlib.h>

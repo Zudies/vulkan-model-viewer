@@ -52,6 +52,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Common\source;$(ProjectDir)source;$(ProjectDir);$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -70,6 +71,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Common\source;$(ProjectDir)source;$(ProjectDir);$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -84,6 +86,7 @@
     <ClInclude Include="source\VulkanAPI.h" />
     <ClInclude Include="source\VulkanAPIImpl.h" />
     <ClInclude Include="source\VulkanErrorToGraphicsError.h" />
+    <ClInclude Include="source\VulkanFeaturesList.h" />
     <ClInclude Include="source\VulkanPhysicalDevice.h" />
     <ClInclude Include="source\VulkanRenderer.h" />
     <ClInclude Include="source\VulkanRendererImpl.h" />
@@ -107,6 +110,15 @@
     <ProjectReference Include="..\Common\Common.vcxproj">
       <Project>{dedfdc9b-3e21-482a-9d30-27a1b07368ca}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="resource\model-viewer-renderer.json">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

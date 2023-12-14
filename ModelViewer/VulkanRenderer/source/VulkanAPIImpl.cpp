@@ -1,15 +1,10 @@
 #include "pch.h"
 #include "VulkanAPIImpl.h"
-
-#ifdef _DEBUG
-#define USE_VK_VALIDATION 1
-#else
-#define USE_VK_VALIDATION 0
-#endif
+#include "JsonRendererRequirements.h"
 
 namespace {
 
-// List of validation layers that will be enabled in debug
+// List of validation layers that will be enabled if validation is enabled
 char const *VALIDATION_LAYERS[] = {
     "VK_LAYER_KHRONOS_validation"
 };
@@ -17,6 +12,18 @@ char const *VALIDATION_LAYERS[] = {
 // List of validation extensions used with validation layers
 char const *VALIDATION_EXTENSIONS[] = {
     "VK_EXT_debug_utils",
+};
+
+// JSON pointer to the set of required and optional features to be used
+// See https://miloyip.github.io/rapidjson/md_doc_pointer.html for formatting rules
+char const JSON_REQ_FEATURES_REQUIRED[] = {
+    "/requiredFeatures"
+};
+char const JSON_REQ_FEATURES_OPTIONAL[] = {
+    "/optionalFeatures"
+};
+char const JSON_REQ_USE_VALIDATION[] = {
+    "/useValidation"
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -46,13 +53,15 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         break;
 
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+        [[fallthrough]];
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-        if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
             severity = "Info";
         }
         else {
             severity = "Warning";
         }
+        [[fallthrough]];
     default:
         LOG_INFO("!! Vulkan Validation: %s  Type: %x  Name: %s !!\n\t\t%s\n",
             severity,
@@ -72,13 +81,14 @@ namespace Vulkan {
 APIImpl::APIImpl()
   : m_vkInstance(0),
     m_vkAppInfo({}),
+    m_useValidation(false),
     m_vkDebugMessenger(0) {
 }
 
 APIImpl::~APIImpl() {
 }
 
-Graphics::GraphicsError APIImpl::Initialize() {
+Graphics::GraphicsError APIImpl::Initialize(Graphics::RendererRequirements *requirements) {
     ASSERT(m_vkInstance == 0);
 
     // This is where the API would normally be loaded, but we're using the static lib
@@ -86,6 +96,11 @@ Graphics::GraphicsError APIImpl::Initialize() {
     //  pointers
 
     LOG_INFO("** Creating Vulkan Instance **\n");
+
+    // Check if validation layers should be enabled
+    Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements *>(requirements);
+    auto useValidationOption = vulkanRequirements->GetBoolean(JSON_REQ_USE_VALIDATION);
+    m_useValidation = useValidationOption.has_value() ? useValidationOption.value() : false;
 
     m_vkAppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     m_vkAppInfo.pApplicationName = "Model Viewer";
@@ -95,7 +110,7 @@ Graphics::GraphicsError APIImpl::Initialize() {
     m_vkAppInfo.apiVersion = _queryInstanceVersion();
 
     // Determine features that can be supported
-    auto internalResult = _populateFeatureList();
+    auto internalResult = _populateFeatureList(requirements);
     if (internalResult != Graphics::GraphicsError::OK) {
         return internalResult;
     }
@@ -117,12 +132,12 @@ Graphics::GraphicsError APIImpl::Initialize() {
 
 Graphics::GraphicsError APIImpl::Finalize() {
     if (m_vkInstance) {
-#if USE_VK_VALIDATION
-        auto destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkDestroyDebugUtilsMessengerEXT");
-        if (destroyDebugMessengerFn) {
-            destroyDebugMessengerFn(m_vkInstance, m_vkDebugMessenger, nullptr);
+        if (m_useValidation) {
+            auto destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkDestroyDebugUtilsMessengerEXT");
+            if (destroyDebugMessengerFn) {
+                destroyDebugMessengerFn(m_vkInstance, m_vkDebugMessenger, nullptr);
+            }
         }
-#endif
 
         vkDestroyInstance(m_vkInstance, nullptr);
         m_vkInstance = 0;
@@ -131,35 +146,43 @@ Graphics::GraphicsError APIImpl::Finalize() {
     return Graphics::GraphicsError::OK;
 }
 
-VulkanPhysicalDevice const *APIImpl::GetDevice(size_t index) const {
+VulkanPhysicalDevice *APIImpl::GetDevice(size_t index) {
     if (index < m_physicalDevices.size()) {
         return &m_physicalDevices[index];
     }
     return nullptr;
 }
 
-VulkanPhysicalDevice const *APIImpl::FindSuitableDevice(Graphics::API_Base::FeatureList const &requiredFeatures, Graphics::API_Base::FeatureList const &optionalFeatures) const {
-    VulkanPhysicalDevice const *bestCandidate = nullptr;
+VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements *requirements) {
+    VulkanPhysicalDevice *bestCandidate = nullptr;
     i32 bestCandidateScore = -1;
-    
+
+    Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements*>(requirements);
+    auto requiredFeatures = vulkanRequirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
+
     for (auto &device : m_physicalDevices) {
         // Check that all required features are supported
         bool allFeaturesSupported = true;
-        for (auto curFeature : requiredFeatures) {
-            if (!device.SupportsFeature(curFeature)) {
-                allFeaturesSupported = false;
-                break;
+        if (requiredFeatures.has_value()) {
+            for (auto curFeature : requiredFeatures.value()) {
+                if (!device.SupportsFeature(curFeature.c_str())) {
+                    allFeaturesSupported = false;
+                    break;
+                }
             }
-        }
-        if (!allFeaturesSupported) {
-            continue;
+            if (!allFeaturesSupported) {
+                continue;
+            }
         }
 
         // Count the number of optional features supported
+        auto optionalFeatures = vulkanRequirements->GetArray(JSON_REQ_FEATURES_OPTIONAL);
         i32 supportedFeatureCount = 0;
-        for (auto curFeature : optionalFeatures) {
-            if (device.SupportsFeature(curFeature)) {
-                ++supportedFeatureCount;
+        if (optionalFeatures.has_value()) {
+            for (auto curFeature : optionalFeatures.value()) {
+                if (device.SupportsFeature(curFeature.c_str())) {
+                    ++supportedFeatureCount;
+                }
             }
         }
 
@@ -187,7 +210,7 @@ uint32_t APIImpl::_queryInstanceVersion() {
     return VK_VERSION_1_0;
 }
 
-Graphics::GraphicsError APIImpl::_populateFeatureList() {
+Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirements *requirements) {
     LOG_INFO("Supported Vulkan version: %d.%d.%d\n",
         VK_API_VERSION_MAJOR(m_vkAppInfo.apiVersion),
         VK_API_VERSION_MINOR(m_vkAppInfo.apiVersion), 
@@ -223,13 +246,15 @@ Graphics::GraphicsError APIImpl::_populateFeatureList() {
     }
 
     // Enable validation layers in debug builds
-#if USE_VK_VALIDATION
-    for (auto i : VALIDATION_LAYERS) {
-        m_vkLayersList.emplace_back(i);
+    if (m_useValidation) {
+        for (auto i : VALIDATION_LAYERS) {
+            m_vkLayersList.emplace_back(i);
+        }
     }
-#endif
 
     // Set additional desired layers based on build and features
+    Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements*>(requirements);
+    (void)vulkanRequirements;
     //TODO:
 
     // Verify all requested layers are supported
@@ -265,11 +290,11 @@ Graphics::GraphicsError APIImpl::_populateFeatureList() {
     }
 
     // Enable validation extensions in debug builds
-#if USE_VK_VALIDATION
-    for (auto i : VALIDATION_EXTENSIONS) {
-        m_vkExtensionsList.emplace_back(i);
+    if (m_useValidation) {
+        for (auto i : VALIDATION_EXTENSIONS) {
+            m_vkExtensionsList.emplace_back(i);
+        }
     }
-#endif
 
     // Determine the required (and optional) extensions
     //m_vkExtensionsList.
@@ -298,22 +323,22 @@ Graphics::GraphicsError APIImpl::_createInstance() {
     createInfo.enabledLayerCount = static_cast<uint32_t>(m_vkLayersList.size());
     createInfo.ppEnabledLayerNames = m_vkLayersList.data();
 
-#if USE_VK_VALIDATION
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    debugCreateInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    debugCreateInfo.messageType =
-        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    debugCreateInfo.pfnUserCallback = debugCallback;
+    if (m_useValidation) {
+        debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        debugCreateInfo.messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        debugCreateInfo.messageType =
+            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        debugCreateInfo.pfnUserCallback = debugCallback;
 
-    createInfo.pNext = &debugCreateInfo;
-#endif
+        createInfo.pNext = &debugCreateInfo;
+    }
 
     auto vkResult = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
     if (vkResult != VK_SUCCESS) {
@@ -323,19 +348,19 @@ Graphics::GraphicsError APIImpl::_createInstance() {
 
     LOG_INFO("VkInstance successfully created!\n");
 
-#if USE_VK_VALIDATION
-    auto createDebugMessengerFn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkCreateDebugUtilsMessengerEXT");
-    if (createDebugMessengerFn) {
-        vkResult = createDebugMessengerFn(
-            m_vkInstance,
-            &debugCreateInfo,
-            nullptr,
-            &m_vkDebugMessenger);
+    if (m_useValidation) {
+        auto createDebugMessengerFn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkCreateDebugUtilsMessengerEXT");
+        if (createDebugMessengerFn) {
+            vkResult = createDebugMessengerFn(
+                m_vkInstance,
+                &debugCreateInfo,
+                nullptr,
+                &m_vkDebugMessenger);
+        }
+        else {
+            return Graphics::GraphicsError::NO_SUCH_EXTENSION;
+        }
     }
-    else {
-        return Graphics::GraphicsError::NO_SUCH_EXTENSION;
-    }
-#endif
 
     return Graphics::GraphicsError::OK;
 }

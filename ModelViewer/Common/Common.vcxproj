@@ -47,11 +47,12 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_LIB;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)source;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)source;$(ProjectDir);$(ProjectDir)ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -65,11 +66,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)source;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)source;$(ProjectDir);$(ProjectDir)ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -84,10 +86,12 @@
     <ClInclude Include="source\base\API_Base.h" />
     <ClInclude Include="source\base\FrameRateController_Base.h" />
     <ClInclude Include="source\base\PhysicalDevice.h" />
+    <ClInclude Include="source\base\RendererRequirements_Base.h" />
     <ClInclude Include="source\base\Renderer_Base.h" />
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\ErrorCodes.h" />
-    <ClInclude Include="source\FeaturesList.h" />
+    <ClInclude Include="source\JsonRendererRequirements.h" />
+    <ClInclude Include="source\JsonRendererRequirementsImpl.h" />
     <ClInclude Include="source\Version.h" />
     <ClInclude Include="source\WindowsFrameRateController.h" />
     <ClInclude Include="source\WindowsFrameRateControllerImpl.h" />
@@ -100,8 +104,11 @@
     <ClCompile Include="source\base\API_Base.cpp" />
     <ClCompile Include="source\base\FrameRateController_Base.cpp" />
     <ClCompile Include="source\base\PhysicalDevice.cpp" />
+    <ClCompile Include="source\base\RendererRequirements_Base.cpp" />
     <ClCompile Include="source\base\Renderer_Base.cpp" />
     <ClCompile Include="source\Common.cpp" />
+    <ClCompile Include="source\JsonRendererRequirements.cpp" />
+    <ClCompile Include="source\JsonRendererRequirementsImpl.cpp" />
     <ClCompile Include="source\WindowsFrameRateController.cpp" />
     <ClCompile Include="source\WindowsFrameRateControllerImpl.cpp" />
   </ItemGroup>

@@ -11,11 +11,11 @@ public:
     API();
     virtual ~API();
 
-    virtual Graphics::GraphicsError Initialize();
+    virtual Graphics::GraphicsError Initialize(Graphics::RendererRequirements *requirements);
     virtual Graphics::GraphicsError Finalize();
 
-    virtual Graphics::PhysicalDevice const *GetDevice(size_t index) const;
-    virtual Graphics::PhysicalDevice const *FindSuitableDevice(Graphics::API_Base::FeatureList const &requiredFeatures, Graphics::API_Base::FeatureList const &optionalFeatures) const;
+    virtual Graphics::PhysicalDevice *GetDevice(size_t index);
+    virtual Graphics::PhysicalDevice *FindSuitableDevice(Graphics::RendererRequirements *requirements);
 
     APIImpl *GetImpl() const { return m_impl; }
 

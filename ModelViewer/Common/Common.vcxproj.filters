@@ -47,7 +47,13 @@
     <ClInclude Include="source\base\PhysicalDevice.h">
       <Filter>Source Files\source\base</Filter>
     </ClInclude>
-    <ClInclude Include="source\FeaturesList.h">
+    <ClInclude Include="source\base\RendererRequirements_Base.h">
+      <Filter>Source Files\source\base</Filter>
+    </ClInclude>
+    <ClInclude Include="source\JsonRendererRequirements.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\JsonRendererRequirementsImpl.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
   </ItemGroup>
@@ -75,6 +81,15 @@
     </ClCompile>
     <ClCompile Include="source\base\PhysicalDevice.cpp">
       <Filter>Source Files\source\base</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base\RendererRequirements_Base.cpp">
+      <Filter>Source Files\source\base</Filter>
+    </ClCompile>
+    <ClCompile Include="source\JsonRendererRequirements.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\JsonRendererRequirementsImpl.cpp">
+      <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

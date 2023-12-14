@@ -11,7 +11,7 @@ public:
     Renderer();
     virtual ~Renderer();
 
-    virtual Graphics::GraphicsError Initialize(Graphics::API_Base *api);
+    virtual Graphics::GraphicsError Initialize(Graphics::API_Base *api, Graphics::PhysicalDevice *physicalDevice);
     virtual Graphics::GraphicsError Finalize();
     virtual Graphics::GraphicsError Update(f64 deltaTime);
 

@@ -7,6 +7,7 @@
 #include "WindowsFrameRateController.h"
 #include "VulkanAPI.h"
 #include "VulkanRenderer.h"
+#include "JsonRendererRequirements.h"
 #include <iostream>
 #include <thread>
 #include <windows.h>
@@ -67,13 +68,21 @@ int main()
 {
     CreateRenderWindow();
 
+    // Load the renderer requirements for Vulkan
+    Graphics::JsonRendererRequirements requirements;
+    requirements.Initialize("model-viewer-renderer.json");
+
+    // Initialize the Vulkan API
     LOG_INFO("Test Runner: Using Vulkan Renderer\n");
     Graphics::API_Base *api = new Vulkan::API;
-    auto result = api->Initialize();
+    auto result = api->Initialize(&requirements);
     ASSERT_MSG(result == Graphics::GraphicsError::OK, L"API Initialization Failed");
 
+    // Find a suitable device
+    auto *physicalDevice = api->FindSuitableDevice(&requirements);
+
     Graphics::Renderer_Base *renderer = new Vulkan::Renderer;
-    renderer->Initialize(api);
+    renderer->Initialize(api, physicalDevice);
 
     Performance::FrameRateController_Base *frameController = new Performance::WindowsFrameRateController;
     Performance::FrameRateControllerSettings frcSettings{};

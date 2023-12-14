@@ -2,6 +2,11 @@
 
 #include "base/PhysicalDevice.h"
 #include <vector>
+#include <optional>
+
+namespace Graphics {
+class RendererRequirements;
+}
 
 namespace Vulkan {
 
@@ -16,8 +21,16 @@ public:
     void Initialize(APIImpl *api, VkPhysicalDevice *vkDevice);
 
 private:
+    struct RequiredQueueProperties {
+        uint32_t queueFlags;
+    };
+
+    std::optional<uint32_t> _getQueueIndex(RequiredQueueProperties *requirements) const;
+
+private:
     APIImpl *m_api;
     VkPhysicalDevice m_device;
+    VkPhysicalDeviceProperties m_vkProperties;
     VkPhysicalDeviceFeatures m_vkFeatures;
 
     typedef std::vector<VkQueueFamilyProperties> QueueFamilyList;

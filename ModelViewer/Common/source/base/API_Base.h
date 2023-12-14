@@ -5,6 +5,7 @@
 namespace Graphics {
 
 class PhysicalDevice;
+class RendererRequirements;
 
 /*
   API class is responsible for initializing a graphics API, making its functions callable
@@ -15,18 +16,15 @@ class PhysicalDevice;
  */
 class API_Base {
 public:
-    typedef std::vector<char const*> FeatureList;
-
-public:
     API_Base();
     virtual ~API_Base() = 0;
 
-    virtual GraphicsError Initialize() = 0;
+    virtual GraphicsError Initialize(RendererRequirements *requirements) = 0;
     virtual GraphicsError Finalize() = 0;
 
     //TODO: Improve FindSuitableDevice to include scores for optional features
-    virtual Graphics::PhysicalDevice const *GetDevice(size_t index) const = 0;
-    virtual Graphics::PhysicalDevice const *FindSuitableDevice(FeatureList const &requiredFeatures, FeatureList const &optionalFeatures) const = 0;
+    virtual Graphics::PhysicalDevice *GetDevice(size_t index) = 0;
+    virtual Graphics::PhysicalDevice *FindSuitableDevice(RendererRequirements *requirements) = 0;
 
 };
 
