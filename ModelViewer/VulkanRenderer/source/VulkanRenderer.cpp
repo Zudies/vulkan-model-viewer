@@ -3,6 +3,7 @@
 #include "VulkanRendererImpl.h"
 #include "VulkanAPI.h"
 #include "VulkanPhysicalDevice.h"
+#include "JsonRendererRequirements.h"
 
 namespace Vulkan {
 
@@ -15,11 +16,11 @@ Renderer::~Renderer() {
     delete m_impl;
 }
 
-Graphics::GraphicsError Renderer::Initialize(Graphics::API_Base *api, Graphics::PhysicalDevice *physicalDevice) {
+Graphics::GraphicsError Renderer::Initialize(Graphics::API_Base *api, Graphics::PhysicalDevice *physicalDevice, Graphics::RendererRequirements *requirements) {
     ASSERT(!m_impl);
 
     m_impl = new RendererImpl;
-    return m_impl->Initialize(static_cast<API*>(api), static_cast<VulkanPhysicalDevice*>(physicalDevice));
+    return m_impl->Initialize(static_cast<API*>(api), static_cast<VulkanPhysicalDevice*>(physicalDevice), static_cast<Graphics::JsonRendererRequirements*>(requirements));
 }
 
 Graphics::GraphicsError Renderer::Finalize() {

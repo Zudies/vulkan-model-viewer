@@ -19,13 +19,16 @@ public:
     virtual bool SupportsFeature(char const *featureName) const;
 
     void Initialize(APIImpl *api, VkPhysicalDevice *vkDevice);
+    void Finalize();
+    std::optional<uint32_t> GetQueueIndex(Graphics::RendererRequirements *requirements) const;
 
-private:
     struct RequiredQueueProperties {
         uint32_t queueFlags;
     };
 
-    std::optional<uint32_t> _getQueueIndex(RequiredQueueProperties *requirements) const;
+    std::optional<uint32_t> GetQueueIndex(RequiredQueueProperties *requirements) const;
+
+    VkPhysicalDevice GetDevice() const { return m_device; }
 
 private:
     APIImpl *m_api;

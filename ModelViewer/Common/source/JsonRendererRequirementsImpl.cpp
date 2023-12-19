@@ -86,7 +86,7 @@ std::optional<std::vector<std::string>> JsonRendererRequirementsImpl::GetArray(c
             result->emplace_back(std::string(it.GetString(), it.GetStringLength()));
         }
     }
-    return result;
+    return std::move(result);
 }
 
 } // namespace Graphics

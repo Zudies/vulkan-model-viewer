@@ -1,30 +1,9 @@
 #include "pch.h"
 #include "VulkanAPIImpl.h"
+#include "VulkanFeaturesList.h"
 #include "JsonRendererRequirements.h"
 
 namespace {
-
-// List of validation layers that will be enabled if validation is enabled
-char const *VALIDATION_LAYERS[] = {
-    "VK_LAYER_KHRONOS_validation"
-};
-
-// List of validation extensions used with validation layers
-char const *VALIDATION_EXTENSIONS[] = {
-    "VK_EXT_debug_utils",
-};
-
-// JSON pointer to the set of required and optional features to be used
-// See https://miloyip.github.io/rapidjson/md_doc_pointer.html for formatting rules
-char const JSON_REQ_FEATURES_REQUIRED[] = {
-    "/requiredFeatures"
-};
-char const JSON_REQ_FEATURES_OPTIONAL[] = {
-    "/optionalFeatures"
-};
-char const JSON_REQ_USE_VALIDATION[] = {
-    "/useValidation"
-};
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -132,6 +111,10 @@ Graphics::GraphicsError APIImpl::Initialize(Graphics::RendererRequirements *requ
 
 Graphics::GraphicsError APIImpl::Finalize() {
     if (m_vkInstance) {
+        for (auto i : m_physicalDevices) {
+            i.Finalize();
+        }
+
         if (m_useValidation) {
             auto destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkDestroyDebugUtilsMessengerEXT");
             if (destroyDebugMessengerFn) {
@@ -159,6 +142,9 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
 
     Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements*>(requirements);
     auto requiredFeatures = vulkanRequirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
+    if (!requiredFeatures.has_value()) {
+        return m_physicalDevices.empty() ? nullptr : &m_physicalDevices.front();
+    }
 
     for (auto &device : m_physicalDevices) {
         // Check that all required features are supported

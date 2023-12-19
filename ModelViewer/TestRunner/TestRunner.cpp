@@ -81,8 +81,9 @@ int main()
     // Find a suitable device
     auto *physicalDevice = api->FindSuitableDevice(&requirements);
 
+    // Initialize the renderer now that the API is initialized and we have a physical device
     Graphics::Renderer_Base *renderer = new Vulkan::Renderer;
-    renderer->Initialize(api, physicalDevice);
+    renderer->Initialize(api, physicalDevice, &requirements);
 
     Performance::FrameRateController_Base *frameController = new Performance::WindowsFrameRateController;
     Performance::FrameRateControllerSettings frcSettings{};

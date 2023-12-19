@@ -31,7 +31,7 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName) const {
     if (strcmp(featureName, FEATURE_SUPPORTS_GRAPHICS_OPERATIONS) == 0) {
         // Device must have a queue family that supports the VK_QUEUE_GRAPHICS_BIT
         RequiredQueueProperties queueRequirements{ VK_QUEUE_GRAPHICS_BIT };
-        auto queueIndex = _getQueueIndex(&queueRequirements);
+        auto queueIndex = GetQueueIndex(&queueRequirements);
         if (queueIndex.has_value()) {
             return true;
         }
@@ -67,7 +67,10 @@ void VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice *vkDevice) 
     vkGetPhysicalDeviceQueueFamilyProperties(m_device, &queueFamilyCount, m_queueFamilies.data());
 }
 
-std::optional<uint32_t> VulkanPhysicalDevice::_getQueueIndex(RequiredQueueProperties *requirements) const {
+void VulkanPhysicalDevice::Finalize() {
+}
+
+std::optional<uint32_t> VulkanPhysicalDevice::GetQueueIndex(RequiredQueueProperties *requirements) const {
     std::optional<uint32_t> ret;
 
     // Find a queue that has all required flags
