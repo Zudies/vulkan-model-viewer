@@ -20,7 +20,7 @@ RendererImpl::RendererImpl()
 RendererImpl::~RendererImpl() {
 }
 
-Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice *physicalDevice, Graphics::JsonRendererRequirements *requirements) {
+Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice *physicalDevice, Graphics::RendererRequirements *requirements) {
     m_api = api->GetImpl();
     ASSERT(m_api->m_vkInstance);
     ASSERT(physicalDevice);

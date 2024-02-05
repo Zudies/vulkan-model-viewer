@@ -1,9 +1,6 @@
 #pragma once
 
 #include "base/RendererRequirements_Base.h"
-#include <string>
-#include <vector>
-#include <optional>
 #include <istream>
 
 namespace Graphics {
@@ -17,11 +14,14 @@ public:
 
     void Initialize(std::string const &settingsFilePath);
     void Initialize(std::istream &dataStream);
+    void AddWindowSurface(WindowSurface *surface);
 
-    std::optional<std::string> GetString(char const *jsonQuery) const;
-    std::optional<f64> GetNumber(char const *jsonQuery) const;
-    std::optional<bool> GetBoolean(char const *jsonQuery) const;
-    std::optional<std::vector<std::string>> GetArray(char const *jsonQuery) const;
+    virtual std::optional<std::string> GetString(char const *jsonQuery) const;
+    virtual std::optional<f64> GetNumber(char const *jsonQuery) const;
+    virtual std::optional<bool> GetBoolean(char const *jsonQuery) const;
+    virtual std::optional<std::vector<std::string>> GetArray(char const *jsonQuery) const;
+
+    virtual WindowSurface *GetWindowSurface(int index) const;
 
 private:
     JsonRendererRequirementsImpl *m_impl;

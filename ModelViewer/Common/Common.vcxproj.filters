@@ -56,6 +56,12 @@
     <ClInclude Include="source\JsonRendererRequirementsImpl.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\base\WindowSurface.h">
+      <Filter>Source Files\source\base</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Win32WindowSurface.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -89,6 +95,12 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\JsonRendererRequirementsImpl.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base\WindowSurface.cpp">
+      <Filter>Source Files\source\base</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Win32WindowSurface.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

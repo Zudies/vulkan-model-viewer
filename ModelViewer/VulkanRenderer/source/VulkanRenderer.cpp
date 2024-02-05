@@ -20,7 +20,7 @@ Graphics::GraphicsError Renderer::Initialize(Graphics::API_Base *api, Graphics::
     ASSERT(!m_impl);
 
     m_impl = new RendererImpl;
-    return m_impl->Initialize(static_cast<API*>(api), static_cast<VulkanPhysicalDevice*>(physicalDevice), static_cast<Graphics::JsonRendererRequirements*>(requirements));
+    return m_impl->Initialize(static_cast<API*>(api), static_cast<VulkanPhysicalDevice*>(physicalDevice), requirements);
 }
 
 Graphics::GraphicsError Renderer::Finalize() {

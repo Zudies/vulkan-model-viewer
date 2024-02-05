@@ -4,7 +4,7 @@
 #include <vector>
 
 namespace Graphics {
-class JsonRendererRequirements;
+class RendererRequirements;
 }
 
 namespace Vulkan {
@@ -18,7 +18,7 @@ public:
     RendererImpl();
     ~RendererImpl();
 
-    Graphics::GraphicsError Initialize(API *api, VulkanPhysicalDevice *physicalDevice, Graphics::JsonRendererRequirements *requirements);
+    Graphics::GraphicsError Initialize(API *api, VulkanPhysicalDevice *physicalDevice, Graphics::RendererRequirements *requirements);
     Graphics::GraphicsError Finalize();
     Graphics::GraphicsError Update(f64 deltaTime);
 

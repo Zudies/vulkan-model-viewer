@@ -24,6 +24,16 @@ void JsonRendererRequirements::Initialize(std::istream &dataStream) {
     m_impl->Initialize(dataStream);
 }
 
+void JsonRendererRequirements::AddWindowSurface(WindowSurface *surface) {
+    ASSERT(m_impl);
+    m_impl->AddWindowSurface(surface);
+}
+
+WindowSurface *JsonRendererRequirements::GetWindowSurface(int index) const {
+    ASSERT(m_impl);
+    return m_impl->GetWindowSurface(index);
+}
+
 #define JSON_REQUIREMENTS_GETTER_IMPL(funcName, type) \
     std::optional<type> JsonRendererRequirements::Get##funcName(char const *jsonQuery) const { \
         ASSERT(m_impl); \

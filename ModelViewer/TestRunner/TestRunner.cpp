@@ -8,6 +8,7 @@
 #include "VulkanAPI.h"
 #include "VulkanRenderer.h"
 #include "JsonRendererRequirements.h"
+#include "Win32WindowSurface.h"
 #include <iostream>
 #include <thread>
 #include <windows.h>
@@ -66,11 +67,14 @@ Graphics::GraphicsError CreateRenderWindow() {
 
 int main()
 {
+    g_hinstance = GetModuleHandle(NULL);
     CreateRenderWindow();
 
     // Load the renderer requirements for Vulkan
+    Graphics::Win32WindowSurface windowSurface(g_hwnd, g_hinstance);
     Graphics::JsonRendererRequirements requirements;
     requirements.Initialize("model-viewer-renderer.json");
+    requirements.AddWindowSurface(&windowSurface);
 
     // Initialize the Vulkan API
     LOG_INFO("Test Runner: Using Vulkan Renderer\n");

@@ -77,8 +77,7 @@ Graphics::GraphicsError APIImpl::Initialize(Graphics::RendererRequirements *requ
     LOG_INFO("** Creating Vulkan Instance **\n");
 
     // Check if validation layers should be enabled
-    Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements *>(requirements);
-    auto useValidationOption = vulkanRequirements->GetBoolean(JSON_REQ_USE_VALIDATION);
+    auto useValidationOption = requirements->GetBoolean(JSON_REQ_USE_VALIDATION);
     m_useValidation = useValidationOption.has_value() ? useValidationOption.value() : false;
 
     m_vkAppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -140,8 +139,7 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
     VulkanPhysicalDevice *bestCandidate = nullptr;
     i32 bestCandidateScore = -1;
 
-    Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements*>(requirements);
-    auto requiredFeatures = vulkanRequirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
+    auto requiredFeatures = requirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
     if (!requiredFeatures.has_value()) {
         return m_physicalDevices.empty() ? nullptr : &m_physicalDevices.front();
     }
@@ -162,7 +160,7 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
         }
 
         // Count the number of optional features supported
-        auto optionalFeatures = vulkanRequirements->GetArray(JSON_REQ_FEATURES_OPTIONAL);
+        auto optionalFeatures = requirements->GetArray(JSON_REQ_FEATURES_OPTIONAL);
         i32 supportedFeatureCount = 0;
         if (optionalFeatures.has_value()) {
             for (auto curFeature : optionalFeatures.value()) {
@@ -239,8 +237,8 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
     }
 
     // Set additional desired layers based on build and features
-    Graphics::JsonRendererRequirements *vulkanRequirements = static_cast<Graphics::JsonRendererRequirements*>(requirements);
-    (void)vulkanRequirements;
+    auto requiredFeatures = requirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
+    auto optionalFeatures = requirements->GetArray(JSON_REQ_FEATURES_OPTIONAL);
     //TODO:
 
     // Verify all requested layers are supported
@@ -283,7 +281,17 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
     }
 
     // Determine the required (and optional) extensions
-    //m_vkExtensionsList.
+    if (requiredFeatures.has_value()) {
+        // Check if window surface rendering is needed
+        if (std::find(requiredFeatures->begin(), requiredFeatures->end(), FEATURE_SURFACE_WINDOW) != requiredFeatures->end()) {
+            m_vkExtensionsList.emplace_back("VK_KHR_surface");
+#if defined(_WIN32)
+            m_vkExtensionsList.emplace_back("VK_KHR_win32_surface");
+#else
+#error Unsupported platform
+#endif
+        }
+    }
 
     // Verify all requested extensions are supported
     for (auto i : m_vkExtensionsList) {

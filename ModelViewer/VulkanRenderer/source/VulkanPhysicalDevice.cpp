@@ -38,6 +38,13 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName) const {
         return false;
     }
 
+    // SURFACE_WINDOW
+    if (strcmp(featureName, FEATURE_SURFACE_WINDOW) == 0) {
+        // Check that the device can present to a surface
+        //TODO:
+        return true;
+    }
+
     // Unknown feature
     ERROR_MSG(L"Unknown feature name: %hs", featureName);
     return false;

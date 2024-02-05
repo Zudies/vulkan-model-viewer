@@ -40,6 +40,10 @@ void JsonRendererRequirementsImpl::Initialize(std::istream &dataStream) {
     ASSERT_MSG(!m_document->HasParseError(), L"Invalid JSON stream when parsing renderer requirements");
 }
 
+void JsonRendererRequirementsImpl::AddWindowSurface(WindowSurface *surface) {
+    m_surfaces.emplace_back(surface);
+}
+
 std::optional<f64> JsonRendererRequirementsImpl::GetNumber(char const *jsonQuery) const {
     ASSERT_MSG(m_document, L"No json data loaded");
     std::optional<f64> result;
@@ -86,7 +90,14 @@ std::optional<std::vector<std::string>> JsonRendererRequirementsImpl::GetArray(c
             result->emplace_back(std::string(it.GetString(), it.GetStringLength()));
         }
     }
-    return std::move(result);
+    return result;
+}
+
+WindowSurface *JsonRendererRequirementsImpl::GetWindowSurface(int index) const {
+    if (index < m_surfaces.size()) {
+        return m_surfaces[index];
+    }
+    return nullptr;
 }
 
 } // namespace Graphics
