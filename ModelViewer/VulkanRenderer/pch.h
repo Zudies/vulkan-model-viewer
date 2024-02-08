@@ -7,11 +7,14 @@
 #ifndef PCH_H
 #define PCH_H
 
-// add headers that you want to pre-compile here
+#if defined(_WIN32)
+#define VK_USE_PLATFORM_WIN32_KHR 1
+#endif
+
 #include "Common.h"
 #include "ErrorCodes.h"
 #include "Version.h"
-#include "vulkan/vulkan.h"
+#include <vulkan.h>
 #include "VulkanErrorToGraphicsError.h"
 
 #endif //PCH_H

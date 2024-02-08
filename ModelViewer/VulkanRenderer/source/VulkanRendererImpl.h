@@ -23,10 +23,17 @@ public:
     Graphics::GraphicsError Update(f64 deltaTime);
 
 private:
+    enum QueueType {
+        QUEUE_GRAPHICS = 0,
+        QUEUE_PRESENT = 1,
+
+        QUEUE_COUNT
+    };
+
     APIImpl *m_api;
     VulkanPhysicalDevice *m_physicalDevice;
     VkDevice m_device;
-    VkQueue m_queues[1]; //TODO: Increase as (if) additional queues are needed
+    VkQueue m_queues[QueueType::QUEUE_COUNT];
 
     bool m_useValidation;
 

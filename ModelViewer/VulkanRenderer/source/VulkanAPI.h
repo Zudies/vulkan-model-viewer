@@ -11,11 +11,11 @@ public:
     API();
     virtual ~API();
 
-    virtual Graphics::GraphicsError Initialize(Graphics::RendererRequirements *requirements);
-    virtual Graphics::GraphicsError Finalize();
+    virtual Graphics::GraphicsError Initialize(Graphics::RendererRequirements *requirements) override;
+    virtual Graphics::GraphicsError Finalize() override;
 
-    virtual Graphics::PhysicalDevice *GetDevice(size_t index);
-    virtual Graphics::PhysicalDevice *FindSuitableDevice(Graphics::RendererRequirements *requirements);
+    virtual Graphics::PhysicalDevice *GetDevice(size_t index) override;
+    virtual Graphics::PhysicalDevice *FindSuitableDevice(Graphics::RendererRequirements *requirements) override;
 
     APIImpl *GetImpl() const { return m_impl; }
 

@@ -2,6 +2,7 @@
 #include "VulkanPhysicalDevice.h"
 #include "VulkanAPIImpl.h"
 #include "VulkanFeaturesList.h"
+#include "base/RendererRequirements_Base.h"
 
 namespace Vulkan {
 
@@ -15,16 +16,11 @@ VulkanPhysicalDevice::VulkanPhysicalDevice()
 VulkanPhysicalDevice::~VulkanPhysicalDevice() {
 }
 
-bool VulkanPhysicalDevice::SupportsFeature(char const *featureName) const {
-    UNUSED_PARAM(featureName);
-
+bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::RendererRequirements *requirements) const {
     // DISCRETE_GPU
     if (strcmp(featureName, FEATURE_IS_DISCRETE_GPU) == 0) {
         // Device must be of type VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
-        if (m_vkProperties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-            return true;
-        }
-        return false;
+        return m_vkProperties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
     }
 
     // GRAPHICS_OPERATIONS
@@ -32,17 +28,19 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName) const {
         // Device must have a queue family that supports the VK_QUEUE_GRAPHICS_BIT
         RequiredQueueProperties queueRequirements{ VK_QUEUE_GRAPHICS_BIT };
         auto queueIndex = GetQueueIndex(&queueRequirements);
-        if (queueIndex.has_value()) {
-            return true;
-        }
-        return false;
+        return queueIndex.has_value();
     }
 
-    // SURFACE_WINDOW
-    if (strcmp(featureName, FEATURE_SURFACE_WINDOW) == 0) {
+    // SURFACE_WINDOW_PRESENT
+    if (strcmp(featureName, FEATURE_SURFACE_WINDOW_PRESENT) == 0) {
         // Check that the device can present to a surface
-        //TODO:
-        return true;
+        auto vkSurface = m_api->GetWindowSurface(requirements->GetWindowSurface(0));
+        if (!vkSurface || vkSurface.value() == nullptr) {
+            return false;
+        }
+        RequiredQueueProperties queueRequirements{ {}, vkSurface };
+        auto queueIndex = GetQueueIndex(&queueRequirements);
+        return queueIndex.has_value();
     }
 
     // Unknown feature
@@ -50,12 +48,11 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName) const {
     return false;
 }
 
-void VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice *vkDevice) {
+void VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice vkDevice) {
     ASSERT(api);
-    ASSERT(vkDevice);
 
     m_api = api;
-    m_device = *vkDevice;
+    m_device = vkDevice;
 
     vkGetPhysicalDeviceProperties(m_device, &m_vkProperties);
     vkGetPhysicalDeviceFeatures(m_device, &m_vkFeatures);
@@ -83,6 +80,15 @@ std::optional<uint32_t> VulkanPhysicalDevice::GetQueueIndex(RequiredQueuePropert
     // Find a queue that has all required flags
     for (size_t i = 0; i < m_queueFamilies.size(); ++i) {
         if ((m_queueFamilies[i].queueFlags & requirements->queueFlags) == requirements->queueFlags) {
+            // If surface support is required, check if the queue has present support
+            if (requirements->surfaceSupport) {
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(m_device, static_cast<uint32_t>(i), *requirements->surfaceSupport, &presentSupport);
+                if (!presentSupport) {
+                    continue;
+                }
+            }
+
             ret = static_cast<uint32_t>(i);
             return ret;
         }

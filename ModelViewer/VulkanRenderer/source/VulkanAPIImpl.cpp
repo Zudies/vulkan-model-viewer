@@ -3,6 +3,10 @@
 #include "VulkanFeaturesList.h"
 #include "JsonRendererRequirements.h"
 
+#if defined(_WIN32)
+#include "Win32WindowSurface.h"
+#endif
+
 namespace {
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -99,6 +103,12 @@ Graphics::GraphicsError APIImpl::Initialize(Graphics::RendererRequirements *requ
         return internalResult;
     }
 
+    // Create all vk surfaces necessary
+    internalResult = _createSurfaces(requirements);
+    if (internalResult != Graphics::GraphicsError::OK) {
+        return internalResult;
+    }
+
     // Iterate the physical devices and determine their capabilities
     internalResult = _queryDevices();
     if (internalResult != Graphics::GraphicsError::OK) {
@@ -111,8 +121,15 @@ Graphics::GraphicsError APIImpl::Initialize(Graphics::RendererRequirements *requ
 Graphics::GraphicsError APIImpl::Finalize() {
     if (m_vkInstance) {
         for (auto i : m_physicalDevices) {
-            i.Finalize();
+            i->Finalize();
+            delete i;
         }
+        m_physicalDevices.clear();
+
+        for (auto i : m_windowSurfaces) {
+            vkDestroySurfaceKHR(m_vkInstance, i.second, nullptr);
+        }
+        m_windowSurfaces.clear();
 
         if (m_useValidation) {
             auto destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkInstance, "vkDestroyDebugUtilsMessengerEXT");
@@ -130,7 +147,7 @@ Graphics::GraphicsError APIImpl::Finalize() {
 
 VulkanPhysicalDevice *APIImpl::GetDevice(size_t index) {
     if (index < m_physicalDevices.size()) {
-        return &m_physicalDevices[index];
+        return m_physicalDevices[index];
     }
     return nullptr;
 }
@@ -141,7 +158,7 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
 
     auto requiredFeatures = requirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
     if (!requiredFeatures.has_value()) {
-        return m_physicalDevices.empty() ? nullptr : &m_physicalDevices.front();
+        return m_physicalDevices.empty() ? nullptr : m_physicalDevices.front();
     }
 
     for (auto &device : m_physicalDevices) {
@@ -149,7 +166,7 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
         bool allFeaturesSupported = true;
         if (requiredFeatures.has_value()) {
             for (auto curFeature : requiredFeatures.value()) {
-                if (!device.SupportsFeature(curFeature.c_str())) {
+                if (!device->SupportsFeature(curFeature.c_str(), requirements)) {
                     allFeaturesSupported = false;
                     break;
                 }
@@ -164,7 +181,7 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
         i32 supportedFeatureCount = 0;
         if (optionalFeatures.has_value()) {
             for (auto curFeature : optionalFeatures.value()) {
-                if (device.SupportsFeature(curFeature.c_str())) {
+                if (device->SupportsFeature(curFeature.c_str(), requirements)) {
                     ++supportedFeatureCount;
                 }
             }
@@ -172,12 +189,20 @@ VulkanPhysicalDevice *APIImpl::FindSuitableDevice(Graphics::RendererRequirements
 
         // Check if this is the new best candidate
         if (supportedFeatureCount > bestCandidateScore) {
-            bestCandidate = &device;
+            bestCandidate = device;
             bestCandidateScore = supportedFeatureCount;
         }
     }
 
     return bestCandidate;
+}
+
+std::optional<VkSurfaceKHR> APIImpl::GetWindowSurface(Graphics::WindowSurface *genericSurface) {
+    auto found = m_windowSurfaces.find(genericSurface);
+    if (found != m_windowSurfaces.end()) {
+        return found->second;
+    }
+    return std::optional<VkSurfaceKHR>();
 }
 
 uint32_t APIImpl::_queryInstanceVersion() {
@@ -202,8 +227,8 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
 
     // Check API version to determine a list of features that can be supported
     //TODO: Verify minimum api version required
-    //      Update a table of capabilities for features if not fatal
     if (m_vkAppInfo.apiVersion < VK_MAKE_API_VERSION(0, 1, 0, 0)) {
+        LOG_ERROR("Unsupported Vulkan version\n");
         return Graphics::GraphicsError::UNSUPPORTED_API_VERSION;
     }
 
@@ -214,6 +239,7 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
     do {
         vkResult = vkEnumerateInstanceLayerProperties(&count, nullptr);
         if (vkResult != VK_SUCCESS) {
+            LOG_ERROR("vkEnumerateInstanceLayerProperties failed: %d\n", vkResult);
             return VulkanErrorToGraphicsError(vkResult);
         }
 
@@ -221,6 +247,7 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
         vkResult = vkEnumerateInstanceLayerProperties(&count, supportedLayers.data());
     } while (vkResult == VK_INCOMPLETE);
     if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumerateInstanceLayerProperties failed: %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
     }
 
@@ -258,6 +285,7 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
     do {
         vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
         if (vkResult != VK_SUCCESS) {
+            LOG_ERROR("vkEnumerateInstanceExtensionProperties failed: %d\n", vkResult);
             return VulkanErrorToGraphicsError(vkResult);
         }
 
@@ -265,6 +293,7 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
         vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, supportedExtensions.data());
     } while (vkResult == VK_INCOMPLETE);
     if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumerateInstanceExtensionProperties failed: %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
     }
 
@@ -283,7 +312,7 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
     // Determine the required (and optional) extensions
     if (requiredFeatures.has_value()) {
         // Check if window surface rendering is needed
-        if (std::find(requiredFeatures->begin(), requiredFeatures->end(), FEATURE_SURFACE_WINDOW) != requiredFeatures->end()) {
+        if (std::find(requiredFeatures->begin(), requiredFeatures->end(), FEATURE_SURFACE_WINDOW_PRESENT) != requiredFeatures->end()) {
             m_vkExtensionsList.emplace_back("VK_KHR_surface");
 #if defined(_WIN32)
             m_vkExtensionsList.emplace_back("VK_KHR_win32_surface");
@@ -337,6 +366,7 @@ Graphics::GraphicsError APIImpl::_createInstance() {
     auto vkResult = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
     if (vkResult != VK_SUCCESS) {
         //TODO: Which errors can be handled?
+        LOG_ERROR("vkCreateInstance failed: %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
     }
 
@@ -352,6 +382,7 @@ Graphics::GraphicsError APIImpl::_createInstance() {
                 &m_vkDebugMessenger);
         }
         else {
+            LOG_ERROR("Unable to load extension function 'vkCreateDebugUtilsMessengerEXT'\n");
             return Graphics::GraphicsError::NO_SUCH_EXTENSION;
         }
     }
@@ -367,9 +398,11 @@ Graphics::GraphicsError APIImpl::_queryDevices() {
     do {
         vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
         if (vkResult != VK_SUCCESS) {
+            LOG_ERROR("vkEnumeratePhysicalDevices failed %d\n", vkResult);
             return VulkanErrorToGraphicsError(vkResult);
         }
         if (deviceCount == 0) {
+            LOG_ERROR("Failed to fetch physical device list\n");
             return Graphics::GraphicsError::NO_SUPPORTED_DEVICE;
         }
 
@@ -377,6 +410,7 @@ Graphics::GraphicsError APIImpl::_queryDevices() {
         vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, physicalDevices.data());
     } while (vkResult == VK_INCOMPLETE);
     if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumeratePhysicalDevices failed %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
     }
 
@@ -384,9 +418,40 @@ Graphics::GraphicsError APIImpl::_queryDevices() {
     m_physicalDevices.resize(physicalDevices.size());
     for (size_t i = 0; i < physicalDevices.size(); ++i) {
         // Create VulkanPhysicalDevice and populate the physical device with queue info and features
-        m_physicalDevices[i].Initialize(this, &physicalDevices[i]);
+        m_physicalDevices[i] = new VulkanPhysicalDevice;
+        m_physicalDevices[i]->Initialize(this, physicalDevices[i]);
     }
 
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError APIImpl::_createSurfaces(Graphics::RendererRequirements *requirements) {
+    int i = 0;
+    Graphics::WindowSurface *requiredSurface = requirements->GetWindowSurface(i);
+    while (requiredSurface != nullptr) {
+        VkSurfaceKHR newSurface;
+
+#if defined(_WIN32)
+        ASSERT(requiredSurface->GetType() == Graphics::WindowSurfaceType::SURFACE_WIN32);
+        Graphics::Win32WindowSurface *win32Surface = static_cast<Graphics::Win32WindowSurface*>(requiredSurface);
+
+        VkWin32SurfaceCreateInfoKHR createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        createInfo.hwnd = win32Surface->GetHwnd();
+        createInfo.hinstance = win32Surface->GetHinstance();
+
+        VkResult vkResult = vkCreateWin32SurfaceKHR(m_vkInstance, &createInfo, nullptr, &newSurface);
+#else
+#error Unsupported platform
+#endif
+        if (vkResult != VK_SUCCESS) {
+            LOG_ERROR("Unable to create win32 surface: %d\n", vkResult);
+            return VulkanErrorToGraphicsError(vkResult);
+        }
+
+        m_windowSurfaces.emplace(requiredSurface, newSurface);
+        requiredSurface = requirements->GetWindowSurface(++i);
+    }
     return Graphics::GraphicsError::OK;
 }
 

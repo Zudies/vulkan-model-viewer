@@ -11,9 +11,9 @@ public:
     Renderer();
     virtual ~Renderer();
 
-    virtual Graphics::GraphicsError Initialize(Graphics::API_Base *api, Graphics::PhysicalDevice *physicalDevice, Graphics::RendererRequirements *requirements);
-    virtual Graphics::GraphicsError Finalize();
-    virtual Graphics::GraphicsError Update(f64 deltaTime);
+    virtual Graphics::GraphicsError Initialize(Graphics::API_Base *api, Graphics::PhysicalDevice *physicalDevice, Graphics::RendererRequirements *requirements) override;
+    virtual Graphics::GraphicsError Finalize() override;
+    virtual Graphics::GraphicsError Update(f64 deltaTime) override;
 
 private:
     RendererImpl *m_impl;

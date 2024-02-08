@@ -16,14 +16,15 @@ class VulkanPhysicalDevice : public Graphics::PhysicalDevice {
 public:
     VulkanPhysicalDevice();
     virtual ~VulkanPhysicalDevice();
-    virtual bool SupportsFeature(char const *featureName) const;
+    virtual bool SupportsFeature(char const *featureName, Graphics::RendererRequirements *requirements) const override;
 
-    void Initialize(APIImpl *api, VkPhysicalDevice *vkDevice);
+    void Initialize(APIImpl *api, VkPhysicalDevice vkDevice);
     void Finalize();
     std::optional<uint32_t> GetQueueIndex(Graphics::RendererRequirements *requirements) const;
 
     struct RequiredQueueProperties {
         uint32_t queueFlags;
+        std::optional<VkSurfaceKHR> surfaceSupport;
     };
 
     std::optional<uint32_t> GetQueueIndex(RequiredQueueProperties *requirements) const;

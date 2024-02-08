@@ -17,7 +17,7 @@ static char const JSON_REQ_USE_VALIDATION[] = {
 // Feature names
 static char const *FEATURE_IS_DISCRETE_GPU = "DISCRETE_GPU";
 static char const *FEATURE_SUPPORTS_GRAPHICS_OPERATIONS = "GRAPHICS_OPERATIONS";
-static char const *FEATURE_SURFACE_WINDOW = "SURFACE_WINDOW";
+static char const *FEATURE_SURFACE_WINDOW_PRESENT = "SURFACE_WINDOW_PRESENT";
 
 // List of validation layers that will be enabled if validation is enabled
 static char const *VALIDATION_LAYERS[] = {
