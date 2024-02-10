@@ -2,6 +2,7 @@
 #include "VulkanAPIImpl.h"
 #include "VulkanFeaturesList.h"
 #include "JsonRendererRequirements.h"
+#include <set>
 
 #if defined(_WIN32)
 #include "Win32WindowSurface.h"
@@ -232,21 +233,18 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
         return Graphics::GraphicsError::UNSUPPORTED_API_VERSION;
     }
 
-    // Check list of available layers
+    // Get list of available layers
     uint32_t count;
     std::vector<VkLayerProperties> supportedLayers;
-    VkResult vkResult;
-    do {
-        vkResult = vkEnumerateInstanceLayerProperties(&count, nullptr);
-        if (vkResult != VK_SUCCESS) {
-            LOG_ERROR("vkEnumerateInstanceLayerProperties failed: %d\n", vkResult);
-            return VulkanErrorToGraphicsError(vkResult);
-        }
-
-        supportedLayers.resize(count);
-        vkResult = vkEnumerateInstanceLayerProperties(&count, supportedLayers.data());
-    } while (vkResult == VK_INCOMPLETE);
+    VkResult vkResult = vkEnumerateInstanceLayerProperties(&count, nullptr);
     if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumerateInstanceLayerProperties failed: %d\n", vkResult);
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+    
+    supportedLayers.resize(count);
+    vkResult = vkEnumerateInstanceLayerProperties(&count, supportedLayers.data());
+    if (vkResult != VK_SUCCESS && vkResult != VK_INCOMPLETE) {
         LOG_ERROR("vkEnumerateInstanceLayerProperties failed: %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
     }
@@ -256,17 +254,89 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
         LOG_INFO("  %s : %u : %s\n", it.layerName, it.specVersion, it.description);
     }
 
-    // Enable validation layers in debug builds
+    // Get list of available instance extensions
+    std::vector<VkExtensionProperties> supportedExtensions;
+    vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+    if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumerateInstanceExtensionProperties failed: %d\n", vkResult);
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+
+    supportedExtensions.resize(count);
+    vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, supportedExtensions.data());
+    if (vkResult != VK_SUCCESS && vkResult != VK_INCOMPLETE) {
+        LOG_ERROR("vkEnumerateInstanceExtensionProperties failed: %d\n", vkResult);
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+
+    LOG_INFO("Supported Instance Extensions:\n");
+    for (auto &it : supportedExtensions) {
+        LOG_INFO("  %s : %u\n", it.extensionName, it.specVersion);
+    }
+
+    // Enable validation layers and extensions if necessary
     if (m_useValidation) {
         for (auto i : VALIDATION_LAYERS) {
             m_vkLayersList.emplace_back(i);
         }
+
+        for (auto i : VALIDATION_EXTENSIONS) {
+            m_vkExtensionsList.emplace_back(i);
+        }
     }
 
-    // Set additional desired layers based on build and features
+    // Set additional desired layers and extensions based on build and features
     auto requiredFeatures = requirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
     auto optionalFeatures = requirements->GetArray(JSON_REQ_FEATURES_OPTIONAL);
-    //TODO:
+    std::set<const char*, StringComp> featureLayers, featureExtensions, optionalLayers, optionalExtensions;
+    auto processFeaturesFunc = [&](std::vector<std::string> &featuresList,
+                                   auto &extensionsOut,
+                                   auto &layersOut) {
+        for (auto &feature : featuresList) {
+            if (feature == FEATURE_IS_DISCRETE_GPU) {
+                // Nothing to do
+            }
+            else if (feature == FEATURE_SUPPORTS_GRAPHICS_OPERATIONS) {
+            }
+            else if (feature == FEATURE_SURFACE_WINDOW_PRESENT) {
+                extensionsOut.emplace("VK_KHR_surface");
+#if defined(_WIN32)
+                extensionsOut.emplace("VK_KHR_win32_surface");
+#else
+#error Unsupported platform
+#endif
+            }
+            else {
+                ERROR_MSG(L"Unknown feature name: %hs", feature.c_str());
+            }
+        }
+    };
+    if (requiredFeatures.has_value()) {
+        processFeaturesFunc(*requiredFeatures, featureExtensions, featureLayers);
+    }
+    if (optionalFeatures.has_value()) {
+        processFeaturesFunc(*optionalFeatures, optionalExtensions, optionalLayers);
+    }
+
+    // Filter out optional layers and extensions that are not supported
+    // Note: Assuming supported layers/extensions does not grow too large or it would be faster
+    //        to sort the list and do a set_intersection
+    for (auto &layer : supportedLayers) {
+        auto requestedLayer = optionalLayers.find(layer.layerName);
+        if (requestedLayer != optionalLayers.end()) {
+            featureLayers.emplace(*requestedLayer);
+        }
+    }
+    for (auto &extension : supportedExtensions) {
+        auto requestedExtension = optionalExtensions.find(extension.extensionName);
+        if (requestedExtension != optionalExtensions.end()) {
+            featureExtensions.emplace(*requestedExtension);
+        }
+    }
+
+    // Update the layer and extension lists to be used
+    m_vkLayersList.insert(m_vkLayersList.end(), featureLayers.begin(), featureLayers.end());
+    m_vkExtensionsList.insert(m_vkExtensionsList.end(), featureExtensions.begin(), featureExtensions.end());
 
     // Verify all requested layers are supported
     for (auto i : m_vkLayersList) {
@@ -278,48 +348,6 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
             }
         }
         ASSERT_MSG(layerFound, L"Required Vulkan Layer %hs not supported\n", i);
-    }
-
-    // Check list of available instance extensions
-    std::vector<VkExtensionProperties> supportedExtensions;
-    do {
-        vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-        if (vkResult != VK_SUCCESS) {
-            LOG_ERROR("vkEnumerateInstanceExtensionProperties failed: %d\n", vkResult);
-            return VulkanErrorToGraphicsError(vkResult);
-        }
-
-        supportedExtensions.resize(count);
-        vkResult = vkEnumerateInstanceExtensionProperties(nullptr, &count, supportedExtensions.data());
-    } while (vkResult == VK_INCOMPLETE);
-    if (vkResult != VK_SUCCESS) {
-        LOG_ERROR("vkEnumerateInstanceExtensionProperties failed: %d\n", vkResult);
-        return VulkanErrorToGraphicsError(vkResult);
-    }
-
-    LOG_INFO("Supported Instance Extensions:\n");
-    for (auto &it : supportedExtensions) {
-        LOG_INFO("  %s : %u\n", it.extensionName, it.specVersion);
-    }
-
-    // Enable validation extensions in debug builds
-    if (m_useValidation) {
-        for (auto i : VALIDATION_EXTENSIONS) {
-            m_vkExtensionsList.emplace_back(i);
-        }
-    }
-
-    // Determine the required (and optional) extensions
-    if (requiredFeatures.has_value()) {
-        // Check if window surface rendering is needed
-        if (std::find(requiredFeatures->begin(), requiredFeatures->end(), FEATURE_SURFACE_WINDOW_PRESENT) != requiredFeatures->end()) {
-            m_vkExtensionsList.emplace_back("VK_KHR_surface");
-#if defined(_WIN32)
-            m_vkExtensionsList.emplace_back("VK_KHR_win32_surface");
-#else
-#error Unsupported platform
-#endif
-        }
     }
 
     // Verify all requested extensions are supported
@@ -363,6 +391,17 @@ Graphics::GraphicsError APIImpl::_createInstance() {
         createInfo.pNext = &debugCreateInfo;
     }
 
+#if defined(_DEBUG) && _DEBUG
+    LOG_VERBOSE("Creating vkInstance with layers:\n");
+    for (auto &i : m_vkLayersList) {
+        LOG_VERBOSE("    + %s\n", i);
+    }
+    LOG_VERBOSE("Creating vkInstance with extensions:\n");
+    for (auto &i : m_vkExtensionsList) {
+        LOG_VERBOSE("    + %s\n", i);
+    }
+#endif
+
     auto vkResult = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
     if (vkResult != VK_SUCCESS) {
         //TODO: Which errors can be handled?
@@ -393,23 +432,20 @@ Graphics::GraphicsError APIImpl::_createInstance() {
 Graphics::GraphicsError APIImpl::_queryDevices() {
     uint32_t deviceCount;
     std::vector<VkPhysicalDevice> physicalDevices;
-    VkResult vkResult;
 
-    do {
-        vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
-        if (vkResult != VK_SUCCESS) {
-            LOG_ERROR("vkEnumeratePhysicalDevices failed %d\n", vkResult);
-            return VulkanErrorToGraphicsError(vkResult);
-        }
-        if (deviceCount == 0) {
-            LOG_ERROR("Failed to fetch physical device list\n");
-            return Graphics::GraphicsError::NO_SUPPORTED_DEVICE;
-        }
-
-        physicalDevices.resize(deviceCount);
-        vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, physicalDevices.data());
-    } while (vkResult == VK_INCOMPLETE);
+    VkResult vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
     if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumeratePhysicalDevices failed %d\n", vkResult);
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+    if (deviceCount == 0) {
+        LOG_ERROR("Failed to fetch physical device list\n");
+        return Graphics::GraphicsError::NO_SUPPORTED_DEVICE;
+    }
+
+    physicalDevices.resize(deviceCount);
+    vkResult = vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, physicalDevices.data());
+    if (vkResult != VK_SUCCESS && vkResult != VK_INCOMPLETE) {
         LOG_ERROR("vkEnumeratePhysicalDevices failed %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
     }

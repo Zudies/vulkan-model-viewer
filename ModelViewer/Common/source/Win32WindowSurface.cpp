@@ -16,6 +16,21 @@ Win32WindowSurface::Win32WindowSurface(HWND hwnd, HINSTANCE hinstance)
 Win32WindowSurface::~Win32WindowSurface() {
 }
 
+bool Win32WindowSurface::Compare(WindowSurface const &other) const {
+    if (GetType() != other.GetType()) {
+        return GetType() < other.GetType();
+    }
+    Win32WindowSurface const *otherW32 = static_cast<Win32WindowSurface const *>(&other);
+    if (m_hwnd != otherW32->m_hwnd) {
+        return m_hwnd < otherW32->m_hwnd;
+    }
+    return m_hinstance < otherW32->m_hinstance;
+}
+
+WindowSurfaceType Win32WindowSurface::GetType() const {
+    return WindowSurfaceType::SURFACE_WIN32;
+}
+
 void Win32WindowSurface::SetHwnd(HWND hwnd) {
     m_hwnd = hwnd;
 }

@@ -37,7 +37,7 @@ private:
 
     bool m_useValidation;
 
-    typedef std::vector<char const *> StringLiteralArray;
+    typedef std::vector<char const*> StringLiteralArray;
     StringLiteralArray m_vkExtensionsList;
     StringLiteralArray m_vkLayersList;
 

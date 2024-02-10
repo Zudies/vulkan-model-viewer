@@ -17,6 +17,7 @@ class RendererRequirements;
 class API_Base {
 public:
     API_Base();
+    API_Base(API_Base const &) = delete;
     virtual ~API_Base() = 0;
 
     virtual GraphicsError Initialize(RendererRequirements *requirements) = 0;

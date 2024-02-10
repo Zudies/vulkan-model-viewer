@@ -7,7 +7,7 @@
 namespace Vulkan {
 
 VulkanPhysicalDevice::VulkanPhysicalDevice()
-  : m_api(nullptr),
+    : m_api(nullptr),
     m_device(0),
     m_vkProperties({}),
     m_vkFeatures({}) {
@@ -40,7 +40,15 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::Re
         }
         RequiredQueueProperties queueRequirements{ {}, vkSurface };
         auto queueIndex = GetQueueIndex(&queueRequirements);
-        return queueIndex.has_value();
+        if (!queueIndex) {
+            return false;
+        }
+
+        // Check that the device supports swapchain
+        return std::find_if(m_supportedExtensions.begin(), m_supportedExtensions.end(),
+                [](VkExtensionProperties const &ext) {
+                    return strcmp(ext.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0;
+            }) != m_supportedExtensions.end();
     }
 
     // Unknown feature
@@ -48,7 +56,7 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::Re
     return false;
 }
 
-void VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice vkDevice) {
+Graphics::GraphicsError VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice vkDevice) {
     ASSERT(api);
 
     m_api = api;
@@ -69,9 +77,26 @@ void VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice vkDevice) {
 
     m_queueFamilies.resize(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(m_device, &queueFamilyCount, m_queueFamilies.data());
+
+    uint32_t extensionCount;
+    VkResult vkResult = vkEnumerateDeviceExtensionProperties(m_device, nullptr, &extensionCount, nullptr);
+    if (vkResult != VK_SUCCESS) {
+        LOG_ERROR("vkEnumerateDeviceExtensionProperties failed %d\n", vkResult);
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+
+    m_supportedExtensions.resize(extensionCount);
+    vkEnumerateDeviceExtensionProperties(m_device, nullptr, &extensionCount, m_supportedExtensions.data());
+    if (vkResult != VK_SUCCESS && vkResult != VK_INCOMPLETE) {
+        LOG_ERROR("vkEnumerateDeviceExtensionProperties failed %d\n", vkResult);
+        return VulkanErrorToGraphicsError(vkResult);
+    }
+
+    return Graphics::GraphicsError::OK;
 }
 
-void VulkanPhysicalDevice::Finalize() {
+Graphics::GraphicsError VulkanPhysicalDevice::Finalize() {
+    return Graphics::GraphicsError::OK;
 }
 
 std::optional<uint32_t> VulkanPhysicalDevice::GetQueueIndex(RequiredQueueProperties *requirements) const {

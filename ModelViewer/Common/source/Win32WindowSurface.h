@@ -11,6 +11,10 @@ public:
     Win32WindowSurface(HWND hwnd, HINSTANCE hinstance);
     virtual ~Win32WindowSurface();
 
+    virtual bool Compare(WindowSurface const &other) const override;
+
+    virtual WindowSurfaceType GetType() const override;
+
     void SetHwnd(HWND hwnd);
     HWND GetHwnd() const;
 

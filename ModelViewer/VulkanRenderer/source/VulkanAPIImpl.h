@@ -38,6 +38,11 @@ private:
     bool m_useValidation;
     VkDebugUtilsMessengerEXT m_vkDebugMessenger;
 
+    struct StringComp {
+        bool operator()(const char *a, const char *b) const {
+            return strcmp(a, b) < 0;
+        }
+    };
     typedef std::vector<char const*> StringLiteralArray;
     StringLiteralArray m_vkExtensionsList;
     StringLiteralArray m_vkLayersList;

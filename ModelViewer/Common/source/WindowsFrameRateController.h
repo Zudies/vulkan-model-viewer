@@ -11,11 +11,11 @@ public:
     WindowsFrameRateController();
     virtual ~WindowsFrameRateController();
 
-    virtual void Initialize(FrameRateControllerSettings *settings);
-    virtual void Finalize();
-    virtual f64 GetElapsedTime() const;
-    virtual void Reset();
-    virtual void Wait(f64 waitTimeSec) const;
+    virtual void Initialize(FrameRateControllerSettings *settings) override;
+    virtual void Finalize() override;
+    virtual f64 GetElapsedTime() const override;
+    virtual void Reset() override;
+    virtual void Wait(f64 waitTimeSec) const override;
 
 private:
     WindowsFrameRateControllerImpl *m_impl;

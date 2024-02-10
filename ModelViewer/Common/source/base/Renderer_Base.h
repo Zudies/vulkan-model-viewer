@@ -13,6 +13,7 @@ class RendererRequirements;
 class Renderer_Base {
 public:
     Renderer_Base();
+    Renderer_Base(Renderer_Base const &) = delete;
     virtual ~Renderer_Base() = 0;
 
     virtual Graphics::GraphicsError Initialize(API_Base *api, PhysicalDevice *physicalDevice, RendererRequirements *requirements) = 0;

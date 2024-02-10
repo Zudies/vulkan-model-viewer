@@ -33,19 +33,17 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     m_useValidation = useValidationOption.has_value() ? useValidationOption.value() : false;
 
     // Get the combined list of required and optional features
-    std::vector<std::string> features;
+    std::set<std::string> features;
     auto requiredFeatures = requirements->GetArray(JSON_REQ_FEATURES_REQUIRED);
     if (requiredFeatures.has_value()) {
-        features = std::move(*requiredFeatures);
+        features.insert(std::make_move_iterator(requiredFeatures->begin()), std::make_move_iterator(requiredFeatures->end()));
     }
 
     auto optionalFeatures = requirements->GetArray(JSON_REQ_FEATURES_OPTIONAL);
     if (optionalFeatures.has_value()) {
-        size_t numFeatures = features.size();
-        features.reserve(numFeatures + optionalFeatures->size());
         for (auto &optionalIt : *optionalFeatures) {
             if (m_physicalDevice->SupportsFeature(optionalIt.c_str(), requirements)) {
-                features.emplace_back(std::move(optionalIt));
+                features.emplace(std::move(optionalIt));
             }
         }
     }
@@ -55,7 +53,10 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     std::set<uint32_t> uniqueQueues;
     VkPhysicalDeviceFeatures deviceFeatures{};
     for (auto &it : features) {
-        if (it == FEATURE_SUPPORTS_GRAPHICS_OPERATIONS) {
+        if (it == FEATURE_IS_DISCRETE_GPU) {
+            // Nothing to do
+        }
+        else if (it == FEATURE_SUPPORTS_GRAPHICS_OPERATIONS) {
             VulkanPhysicalDevice::RequiredQueueProperties queueRequirements{};
             queueRequirements.queueFlags |= VK_QUEUE_GRAPHICS_BIT;
             auto queueIndex = m_physicalDevice->GetQueueIndex(&queueRequirements);
@@ -80,6 +81,11 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
             }
             queueIndices[QueueType::QUEUE_PRESENT] = *queueIndex;
             uniqueQueues.emplace(*queueIndex);
+
+            m_vkExtensionsList.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        }
+        else {
+            ERROR_MSG(L"Unknown feature name: %hs", it.c_str());
         }
     }
 
@@ -114,6 +120,17 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     createInfo.ppEnabledLayerNames = m_vkLayersList.data();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(m_vkExtensionsList.size());
     createInfo.ppEnabledExtensionNames = m_vkExtensionsList.data();
+
+#if defined(_DEBUG) && _DEBUG
+    LOG_VERBOSE("Creating logical vkDevice with layers:\n");
+    for (auto &i : m_vkLayersList) {
+        LOG_VERBOSE("    + %s\n", i);
+    }
+    LOG_VERBOSE("Creating logical vkDevice with extensions:\n");
+    for (auto &i : m_vkExtensionsList) {
+        LOG_VERBOSE("    + %s\n", i);
+    }
+#endif
 
     VkResult vkResult = vkCreateDevice(m_physicalDevice->GetDevice(), &createInfo, nullptr, &m_device);
     if (vkResult != VK_SUCCESS) {

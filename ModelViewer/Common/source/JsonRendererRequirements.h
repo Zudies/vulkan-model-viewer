@@ -16,12 +16,12 @@ public:
     void Initialize(std::istream &dataStream);
     void AddWindowSurface(WindowSurface *surface);
 
-    virtual std::optional<std::string> GetString(char const *jsonQuery) const;
-    virtual std::optional<f64> GetNumber(char const *jsonQuery) const;
-    virtual std::optional<bool> GetBoolean(char const *jsonQuery) const;
-    virtual std::optional<std::vector<std::string>> GetArray(char const *jsonQuery) const;
+    virtual std::optional<std::string> GetString(char const *jsonQuery) const override;
+    virtual std::optional<f64> GetNumber(char const *jsonQuery) const override;
+    virtual std::optional<bool> GetBoolean(char const *jsonQuery) const override;
+    virtual std::optional<std::vector<std::string>> GetArray(char const *jsonQuery) const override;
 
-    virtual WindowSurface *GetWindowSurface(int index) const;
+    virtual WindowSurface *GetWindowSurface(int index) const override;
 
 private:
     JsonRendererRequirementsImpl *m_impl;

@@ -97,6 +97,7 @@
     <ClInclude Include="source\Win32WindowSurface.h" />
     <ClInclude Include="source\WindowsFrameRateController.h" />
     <ClInclude Include="source\WindowsFrameRateControllerImpl.h" />
+    <ClInclude Include="source\WindowSurfaceTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
