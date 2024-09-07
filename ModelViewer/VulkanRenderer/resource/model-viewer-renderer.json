@@ -1,5 +1,13 @@
 {
     "useValidation": true,
     "requiredFeatures": [ "DISCRETE_GPU", "GRAPHICS_OPERATIONS", "SURFACE_WINDOW_PRESENT" ],
-    "optionalFeatures": []
+    "optionalFeatures": [],
+    "surfaces": [
+        {
+            "index": 0,
+            "preferredFormats": [ "B8G8R8A8_SRGB", "B8G8R8A8_UNORM" ],
+            "preferredColorSpaces": [ "SRGB_NONLINEAR", "SRGB_NONLINEAR" ],
+            "preferredPresentModes": [ "MAILBOX", "FIFO_RELAXED", "FIFO", "IMMEDIATE" ]
+        }
+    ]
 }

@@ -17,4 +17,12 @@
 #include <vulkan.h>
 #include "VulkanErrorToGraphicsError.h"
 
+#include <optional>
+#include <string>
+#include <limits>
+#include <vector>
+#include <map>
+#include <set>
+#include <algorithm>
+
 #endif //PCH_H

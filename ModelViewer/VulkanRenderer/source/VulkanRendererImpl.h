@@ -23,6 +23,10 @@ public:
     Graphics::GraphicsError Update(f64 deltaTime);
 
 private:
+    Graphics::GraphicsError _createSwapChain(Graphics::RendererRequirements *requirements);
+    void _cleanupSwapChain();
+
+private:
     enum QueueType {
         QUEUE_GRAPHICS = 0,
         QUEUE_PRESENT = 1,
@@ -33,7 +37,12 @@ private:
     APIImpl *m_api;
     VulkanPhysicalDevice *m_physicalDevice;
     VkDevice m_device;
+    uint32_t m_queueIndices[QueueType::QUEUE_COUNT];
     VkQueue m_queues[QueueType::QUEUE_COUNT];
+
+    // Swap chain
+    typedef std::vector<VulkanSwapChain> SwapChainArray;
+    SwapChainArray m_swapchains;
 
     bool m_useValidation;
 

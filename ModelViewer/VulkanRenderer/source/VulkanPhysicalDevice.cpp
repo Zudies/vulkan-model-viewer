@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "VulkanPhysicalDevice.h"
 #include "VulkanAPIImpl.h"
-#include "VulkanFeaturesList.h"
+#include "VulkanFeaturesDefines.h"
 #include "base/RendererRequirements_Base.h"
 
 namespace Vulkan {
@@ -54,6 +54,10 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::Re
     // Unknown feature
     ERROR_MSG(L"Unknown feature name: %hs", featureName);
     return false;
+}
+
+bool VulkanPhysicalDevice::SupportsSurface(int surfaceIndex, Graphics::RendererRequirements *requirements) const {
+    return GetSupportedSurfaceDescription(surfaceIndex, requirements).has_value();
 }
 
 Graphics::GraphicsError VulkanPhysicalDevice::Initialize(APIImpl *api, VkPhysicalDevice vkDevice) {
@@ -118,6 +122,126 @@ std::optional<uint32_t> VulkanPhysicalDevice::GetQueueIndex(RequiredQueuePropert
             return ret;
         }
     }
+
+    return ret;
+}
+
+std::optional<VulkanSwapChain> VulkanPhysicalDevice::GetSupportedSurfaceDescription(int surfaceIndex, Graphics::RendererRequirements *requirements) const {
+    std::optional<VulkanSwapChain> ret;
+
+    Graphics::WindowSurface *surface = requirements->GetWindowSurface(surfaceIndex);
+    if (surface == nullptr) {
+        return ret;
+    }
+
+    // Find the corresponding surface description in the requirements
+    char jsonPointerBuffer[64];
+    int i = 0;
+    do {
+        sprintf_s(jsonPointerBuffer, JSON_REQ_SURFACES_INDEX, i);
+        auto descriptionIndex = requirements->GetNumber(jsonPointerBuffer);
+        if (!descriptionIndex) {
+            // Failure to get index means there are no more elements
+            return ret;
+        }
+
+        if (*descriptionIndex == surfaceIndex) {
+            auto vkSurface = m_api->GetWindowSurface(requirements->GetWindowSurface(surfaceIndex));
+            if (!vkSurface) {
+                // No surface at index
+                return ret;
+            }
+
+            VulkanSwapChain supportedSurface;
+            supportedSurface.SetIndex(static_cast<u32>(*descriptionIndex));
+            supportedSurface.SetSurface(*vkSurface);
+
+            VkSurfaceCapabilitiesKHR capabilities;
+            if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_device, *vkSurface, &capabilities) != VK_SUCCESS) {
+                return ret;
+            }
+
+            // Check for preferred format support
+            uint32_t formatCount;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(m_device, *vkSurface, &formatCount, nullptr);
+            if (formatCount != 0) {
+                std::vector<VkSurfaceFormatKHR> formats(formatCount);
+                if (vkGetPhysicalDeviceSurfaceFormatsKHR(m_device, *vkSurface, &formatCount, formats.data()) != VK_SUCCESS) {
+                    return ret;
+                }
+
+                sprintf_s(jsonPointerBuffer, JSON_REQ_SURFACES_FORMATS, i);
+                auto preferredFormats = requirements->GetArray(jsonPointerBuffer);
+
+                sprintf_s(jsonPointerBuffer, JSON_REQ_SURFACES_COLORSPACES, i);
+                auto preferredColorSpaces = requirements->GetArray(jsonPointerBuffer);
+
+                // Match preferred format in order
+                if (!preferredFormats || !preferredColorSpaces) {
+                    ERROR_MSG(L"Requirements file does not contain surface Formats or Color Spaces for index %d", surfaceIndex);
+                    return ret;
+                }
+
+                // Formats and color spaces should be same size
+                if (preferredFormats->size() != preferredColorSpaces->size()) {
+                    ERROR_MSG(L"Requirements file does not have matching Formats and Color Spaces entries for index %d", surfaceIndex);
+                    return ret;
+                }
+
+                for (size_t k = 0; k < preferredFormats->size(); ++k) {
+                    VkSurfaceFormatKHR desiredFormat{
+                        VulkanSwapChain::StringToFormat(preferredFormats->at(k)),
+                        VulkanSwapChain::StringToColorSpace(preferredColorSpaces->at(k)) };
+                    auto foundFormat = std::find_if(formats.begin(), formats.end(), [desiredFormat](VkSurfaceFormatKHR val) { return val.format == desiredFormat.format && val.colorSpace == desiredFormat.colorSpace; });
+                    if (foundFormat != formats.end()) {
+                        supportedSurface.SetFormat(desiredFormat.format);
+                        supportedSurface.SetColorSpace(desiredFormat.colorSpace);
+                        break;
+                    }
+                }
+
+                if (supportedSurface.GetFormat() == VK_FORMAT_UNDEFINED) {
+                    return ret;
+                }
+            }
+
+            // Check for preferred present mode support
+            uint32_t presentModeCount;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(m_device, *vkSurface, &presentModeCount, nullptr);
+            if (presentModeCount == 0) {
+                return ret;
+            }
+
+            std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(m_device, *vkSurface, &presentModeCount, presentModes.data());
+
+            sprintf_s(jsonPointerBuffer, JSON_REQ_SURFACES_PRESENT_MODE, i);
+            auto preferredPresentModes = requirements->GetArray(jsonPointerBuffer);
+
+            // Match preferred format in order
+            if (!preferredPresentModes) {
+                ERROR_MSG(L"Requirements file does not contain surface Present Modes for index %d", surfaceIndex);
+                return ret;
+            }
+
+            for (size_t k = 0; k < preferredPresentModes->size(); ++k) {
+                VkPresentModeKHR desiredPresentMode = VulkanSwapChain::StringToPresentMode(preferredPresentModes->at(k));
+                auto foundPresentMode = std::find(presentModes.begin(), presentModes.end(), desiredPresentMode);
+                if (foundPresentMode != presentModes.end()) {
+                    supportedSurface.SetPresentMode(desiredPresentMode);
+                    break;
+                }
+            }
+
+            if (supportedSurface.GetPresentMode() == VK_PRESENT_MODE_MAX_ENUM_KHR) {
+                return ret;
+            }
+
+            return supportedSurface;
+        }
+
+        ++i;
+    } while (true);
 
     return ret;
 }

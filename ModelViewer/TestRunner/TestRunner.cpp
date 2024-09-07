@@ -112,6 +112,7 @@ int main()
         timeSinceLastFrame += frameController->GetElapsedTime();
         if (timeSinceLastFrame >= frcSettings.DesiredFrameTime) {
             // Run a frame
+            //TODO: Handle errors
             renderer->Update(timeSinceLastFrame);
 
             // Update FPS (smooth the fps using 20% of current)

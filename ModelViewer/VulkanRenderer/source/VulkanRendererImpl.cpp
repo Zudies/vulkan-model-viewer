@@ -2,8 +2,9 @@
 #include "VulkanRendererImpl.h"
 #include "VulkanAPI.h"
 #include "VulkanAPIImpl.h"
-#include "VulkanFeaturesList.h"
+#include "VulkanFeaturesDefines.h"
 #include "JsonRendererRequirements.h"
+#include "Win32WindowSurface.h"
 #include <set>
 
 namespace Vulkan {
@@ -12,6 +13,7 @@ RendererImpl::RendererImpl()
   : m_api(nullptr),
     m_physicalDevice(nullptr),
     m_device(0),
+    m_queueIndices{},
     m_queues{},
     m_useValidation(false) {
 
@@ -140,11 +142,17 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
 
     for (int i = 0; i < QueueType::QUEUE_COUNT; ++i) {
         if (queueIndices[i]) {
+            m_queueIndices[i] = *queueIndices[i];
             vkGetDeviceQueue(m_device, *queueIndices[i], 0, &m_queues[i]);
         }
     }
 
     LOG_INFO("Vulkan logical device successfully created!\n");
+
+    LOG_INFO("Creating swap chains\n");
+    _createSwapChain(requirements);
+    LOG_INFO("Swap chains created successfully\n");
+
     return Graphics::GraphicsError::OK;
 }
 
@@ -164,6 +172,170 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     UNUSED_PARAM(deltaTime);
 
     return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererImpl::_createSwapChain(Graphics::RendererRequirements *requirements) {
+    // Clean up any old swap chains
+    _cleanupSwapChain();
+
+    // Attempt to create swap chains for each surface in requirements
+    int i = 0;
+    Graphics::WindowSurface *curSurface = requirements->GetWindowSurface(i);
+    while (curSurface) {
+        LOG_VERBOSE(L"Creating swapchain for surface %d\n", i);
+        // Get window size
+        uint32_t width = 0, height = 0;
+#if defined(_WIN32)
+        Graphics::Win32WindowSurface *winSurface = static_cast<Graphics::Win32WindowSurface*>(curSurface);
+        RECT windowSize;
+        GetWindowRect(winSurface->GetHwnd(), &windowSize);
+        width = windowSize.right - windowSize.left;
+        height = windowSize.bottom - windowSize.top;
+#else
+#error Unsupported platform
+#endif
+
+        // If window is minimized, skip this surface
+        if (width == 0 || height == 0) {
+            VulkanSwapChain emptySwapChain;
+            emptySwapChain.SetIndex(i);
+            m_swapchains.push_back(emptySwapChain);
+
+            curSurface = requirements->GetWindowSurface(++i);
+            continue;
+        }
+
+        auto supportedSurfaceDescription = m_physicalDevice->GetSupportedSurfaceDescription(i, requirements);
+        if (supportedSurfaceDescription) {
+            VkSurfaceCapabilitiesKHR capabilities{};
+            if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice->GetDevice(), supportedSurfaceDescription->GetSurface(), &capabilities) != VK_SUCCESS) {
+                LOG_ERROR(L"  Unable to get surface capabilities\n");
+                VulkanSwapChain emptySwapChain;
+                emptySwapChain.SetIndex(i);
+                m_swapchains.push_back(emptySwapChain);
+
+                curSurface = requirements->GetWindowSurface(++i);
+                continue;
+            }
+
+            // Pick an appropriate extent
+            // Prefer VK's current extent over what Windows reports
+            VkExtent2D desiredExtent { width, height };
+            if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+                desiredExtent = capabilities.currentExtent;
+            }
+            desiredExtent.width = std::clamp(desiredExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            desiredExtent.height = std::clamp(desiredExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+            supportedSurfaceDescription->SetExtents(desiredExtent);
+
+            // Create the VkSwapchain
+            //TODO: Should this be in requirements json?
+            uint32_t imageCount = capabilities.minImageCount + 1;
+            if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
+                imageCount = capabilities.maxImageCount;
+            }
+
+            //TODO: Read override values (present mode, etc.) from UI
+            VkSwapchainCreateInfoKHR createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+            createInfo.surface = supportedSurfaceDescription->GetSurface();
+            createInfo.minImageCount = imageCount;
+            createInfo.imageFormat = supportedSurfaceDescription->GetFormat();
+            createInfo.imageColorSpace = supportedSurfaceDescription->GetColorSpace();
+            createInfo.imageExtent = supportedSurfaceDescription->GetExtents();
+            createInfo.presentMode = supportedSurfaceDescription->GetPresentMode();
+            createInfo.imageArrayLayers = 1;
+            createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            createInfo.preTransform = capabilities.currentTransform;
+            createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            createInfo.clipped = VK_TRUE;
+            createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+            if (m_queueIndices[QUEUE_GRAPHICS] != m_queueIndices[QUEUE_PRESENT]) {
+                uint32_t queueFamilyIndices[] = { m_queueIndices[QUEUE_GRAPHICS], m_queueIndices[QUEUE_PRESENT] };
+                createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+                createInfo.queueFamilyIndexCount = 2;
+                createInfo.pQueueFamilyIndices = queueFamilyIndices;
+            }
+            else {
+                createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            }
+
+            VkSwapchainKHR vkSwapChain;
+            if (vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &vkSwapChain) != VK_SUCCESS) {
+                LOG_ERROR(L"Failed to create VkSwapchain\n");
+                return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
+            }
+
+            if (vkGetSwapchainImagesKHR(m_device, vkSwapChain, &imageCount, nullptr) != VK_SUCCESS) {
+                LOG_ERROR(L"Failed to get swapchain images\n");
+                vkDestroySwapchainKHR(m_device, vkSwapChain, nullptr);
+                return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
+            }
+            VulkanSwapChain::ImageArray swapChainImages(imageCount);
+            if (vkGetSwapchainImagesKHR(m_device, vkSwapChain, &imageCount, swapChainImages.data()) != VK_SUCCESS) {
+                LOG_ERROR(L"Failed to get swapchain images\n");
+                vkDestroySwapchainKHR(m_device, vkSwapChain, nullptr);
+                return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
+            }
+
+            VulkanSwapChain::ImageViewArray swapChainImageViews(imageCount);
+            for (size_t k = 0; k < imageCount; ++k) {
+                VkImageViewCreateInfo imageViewCreateInfo{};
+                imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+                imageViewCreateInfo.image = swapChainImages[k];
+                imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+                imageViewCreateInfo.format = supportedSurfaceDescription->GetFormat();
+                imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+                imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+                imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+                imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+                imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+                imageViewCreateInfo.subresourceRange.levelCount = 1;
+                imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+                imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+                if (vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &swapChainImageViews[k]) != VK_SUCCESS) {
+                    LOG_ERROR(L"Failed to create swapchain image view\n");
+
+                    // Destroy all the image views that were created up to now
+                    while (--k >= 0) {
+                        vkDestroyImageView(m_device, swapChainImageViews[k], nullptr);
+                    }
+
+                    vkDestroySwapchainKHR(m_device, vkSwapChain, nullptr);
+                    return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
+                }
+            }
+
+            supportedSurfaceDescription->SetSwapchain(vkSwapChain);
+            supportedSurfaceDescription->SetImages(swapChainImages);
+            supportedSurfaceDescription->SetImageViews(swapChainImageViews);
+
+            m_swapchains.emplace_back(*supportedSurfaceDescription);
+
+            LOG_VERBOSE(L"  Swapchain created successfully for surface %d\n", i);
+        }
+
+        curSurface = requirements->GetWindowSurface(++i);
+    }
+
+    return Graphics::GraphicsError::OK;
+}
+
+void RendererImpl::_cleanupSwapChain() {
+    vkDeviceWaitIdle(m_device);
+    for (VulkanSwapChain &curSwapChain : m_swapchains) {
+        auto &imageViews = curSwapChain.GetImageViews();
+
+        for (auto imageView : imageViews) {
+            vkDestroyImageView(m_device, imageView, nullptr);
+        }
+
+        vkDestroySwapchainKHR(m_device, curSwapChain.GetSwapchain(), nullptr);
+    }
+    m_swapchains.clear();
 }
 
 

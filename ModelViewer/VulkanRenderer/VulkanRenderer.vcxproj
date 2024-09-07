@@ -83,10 +83,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="source\VulkanSwapChain.h" />
     <ClInclude Include="source\VulkanAPI.h" />
     <ClInclude Include="source\VulkanAPIImpl.h" />
     <ClInclude Include="source\VulkanErrorToGraphicsError.h" />
-    <ClInclude Include="source\VulkanFeaturesList.h" />
+    <ClInclude Include="source\VulkanFeaturesDefines.h" />
     <ClInclude Include="source\VulkanPhysicalDevice.h" />
     <ClInclude Include="source\VulkanRenderer.h" />
     <ClInclude Include="source\VulkanRendererImpl.h" />
@@ -102,6 +103,7 @@
     <ClCompile Include="source\VulkanPhysicalDevice.cpp" />
     <ClCompile Include="source\VulkanRenderer.cpp" />
     <ClCompile Include="source\VulkanRendererImpl.cpp" />
+    <ClCompile Include="source\VulkanSwapChain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="$(VULKAN_SDK)\Lib\vulkan-1.lib" />

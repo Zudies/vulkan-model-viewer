@@ -26,6 +26,9 @@ enum class GraphicsError {
     // No suitable device that could run this application was found
     NO_SUPPORTED_DEVICE,
 
+    // Failed to create swapchain
+    SWAPCHAIN_CREATE_ERROR,
+
 };
 
 } // namespace Graphics

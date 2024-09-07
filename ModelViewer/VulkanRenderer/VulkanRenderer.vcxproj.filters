@@ -35,7 +35,10 @@
     <ClInclude Include="source\VulkanPhysicalDevice.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
-    <ClInclude Include="source\VulkanFeaturesList.h">
+    <ClInclude Include="source\VulkanFeaturesDefines.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanSwapChain.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
   </ItemGroup>
@@ -59,6 +62,9 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanPhysicalDevice.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanSwapChain.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

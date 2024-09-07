@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base/PhysicalDevice.h"
+#include "VulkanSwapChain.h"
 #include <vector>
 #include <optional>
 
@@ -17,6 +18,7 @@ public:
     VulkanPhysicalDevice();
     virtual ~VulkanPhysicalDevice();
     virtual bool SupportsFeature(char const *featureName, Graphics::RendererRequirements *requirements) const override;
+    virtual bool SupportsSurface(int surfaceIndex, Graphics::RendererRequirements *requirements) const override;
 
     Graphics::GraphicsError Initialize(APIImpl *api, VkPhysicalDevice vkDevice);
     Graphics::GraphicsError Finalize();
@@ -30,6 +32,8 @@ public:
     std::optional<uint32_t> GetQueueIndex(RequiredQueueProperties *requirements) const;
 
     VkPhysicalDevice GetDevice() const { return m_device; }
+
+    std::optional<VulkanSwapChain> GetSupportedSurfaceDescription(int surfaceIndex, Graphics::RendererRequirements *requirements) const;
 
 private:
     APIImpl *m_api;

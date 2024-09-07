@@ -49,8 +49,8 @@ std::optional<f64> JsonRendererRequirementsImpl::GetNumber(char const *jsonQuery
     std::optional<f64> result;
     auto value = rapidjson::Pointer(jsonQuery).Get(*m_document);
     if (value) {
-            ASSERT_MSG(value->IsDouble(), L"JSON value is not of type %s (%s)", "Number", jsonQuery);
-            result = value->GetDouble();
+        ASSERT_MSG(value->IsNumber(), L"JSON value is not of type %hs (%hs)", "Number", value->GetString());// jsonQuery);
+        result = value->GetDouble();
     }
     return result;
 }
@@ -60,7 +60,7 @@ std::optional<bool> JsonRendererRequirementsImpl::GetBoolean(char const *jsonQue
     std::optional<bool> result;
     auto value = rapidjson::Pointer(jsonQuery).Get(*m_document);
     if (value) {
-        ASSERT_MSG(value->IsBool(), L"JSON value is not of type %s (%s)", "Boolean", jsonQuery);
+        ASSERT_MSG(value->IsBool(), L"JSON value is not of type %hs (%hs)", "Boolean", jsonQuery);
         result = value->GetBool();
     }
     return result;
@@ -71,7 +71,7 @@ std::optional<std::string> JsonRendererRequirementsImpl::GetString(char const *j
     std::optional<std::string> result;
     auto value = rapidjson::Pointer(jsonQuery).Get(*m_document);
     if (value) {
-        ASSERT_MSG(value->IsString(), L"JSON value is not of type %s (%s)", "String", jsonQuery);
+        ASSERT_MSG(value->IsString(), L"JSON value is not of type %hs (%hs)", "String", jsonQuery);
         result = std::string(value->GetString(), value->GetStringLength());
     }
     return result;
@@ -82,7 +82,7 @@ std::optional<std::vector<std::string>> JsonRendererRequirementsImpl::GetArray(c
     std::optional<std::vector<std::string>> result;
     auto value = rapidjson::Pointer(jsonQuery).Get(*m_document);
     if (value) {
-        ASSERT_MSG(value->IsArray(), L"JSON value is not of type %s (%s)", "Array", jsonQuery);
+        ASSERT_MSG(value->IsArray(), L"JSON value is not of type %hs (%hs)", "Array", jsonQuery);
         auto queryArray = value->GetArray();
         result = std::vector<std::string>();
         result->reserve(queryArray.Size());

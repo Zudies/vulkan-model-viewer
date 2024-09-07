@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "VulkanAPIImpl.h"
-#include "VulkanFeaturesList.h"
+#include "VulkanFeaturesDefines.h"
 #include "JsonRendererRequirements.h"
 #include <set>
 
@@ -456,6 +456,51 @@ Graphics::GraphicsError APIImpl::_queryDevices() {
         // Create VulkanPhysicalDevice and populate the physical device with queue info and features
         m_physicalDevices[i] = new VulkanPhysicalDevice;
         m_physicalDevices[i]->Initialize(this, physicalDevices[i]);
+
+#if defined(_DEBUG) && _DEBUG
+        int k = 0;
+        for (auto &surface : m_windowSurfaces) {
+            LOG_VERBOSE("    Supported surface formats at index %d:\n", k);
+            uint32_t formatCount = 0;
+            vkResult = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevices[i], surface.second, &formatCount, nullptr);
+
+            if (vkResult == VkResult::VK_SUCCESS) {
+                std::vector<VkSurfaceFormatKHR> formats(formatCount);
+                vkResult = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevices[i], surface.second, &formatCount, formats.data());
+                if (vkResult == VkResult::VK_SUCCESS) {
+                    for (auto &format : formats) {
+                        LOG_VERBOSE("        %u %u\n", format.format, format.colorSpace);
+                    }
+                }
+            }
+
+            LOG_VERBOSE("    Supported present modes at index %d:\n", k);
+            uint32_t presentModeCount = 0;
+            vkResult = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevices[i], surface.second, &presentModeCount, nullptr);
+
+            if (vkResult == VkResult::VK_SUCCESS) {
+                std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+                vkResult = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevices[i], surface.second, &presentModeCount, presentModes.data());
+                if (vkResult == VkResult::VK_SUCCESS) {
+                    for (auto &presentMode : presentModes) {
+                        LOG_VERBOSE("        %u\n", presentMode);
+                    }
+                }
+            }
+
+            VkSurfaceCapabilitiesKHR capabilities;
+            vkResult = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevices[i], surface.second, &capabilities);
+            if (vkResult == VkResult::VK_SUCCESS) {
+                LOG_VERBOSE("    Capabilities:\n");
+                LOG_VERBOSE("        ImageCount: %u - %u\n", capabilities.minImageCount, capabilities.maxImageCount);
+                LOG_VERBOSE("        MinExtent: %u x %u\n", capabilities.minImageExtent.width, capabilities.minImageExtent.height);
+                LOG_VERBOSE("        MaxExtent: %u x %u\n", capabilities.maxImageExtent.width, capabilities.maxImageExtent.height);
+                LOG_VERBOSE("        CurExtent: %u x %u\n", capabilities.currentExtent.width, capabilities.currentExtent.height);
+            }
+
+            ++k;
+        }
+#endif
     }
 
     return Graphics::GraphicsError::OK;
