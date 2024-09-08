@@ -17,6 +17,8 @@ public:
     virtual void SetSceneActive(Graphics::RendererScene_Base *activeScene) override;
     virtual void SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) override;
 
+    virtual void RegisterOnRecreateSwapChainFunc(OnDestroySwapChainFn destroyFunc, OnCreateSwapChainFn createFunc) override;
+
     RendererImpl *GetImpl();
 
 private:

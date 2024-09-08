@@ -6,6 +6,7 @@ class Renderer_Base;
 
 /*
   Renderer Scene class maintains a scene and necessary pipelines/states to render said scene
+  This class is responsible for owning and managing the pipeline and resources (textures, models, etc.) necessary to render itself
  */
 class RendererScene_Base {
 public:

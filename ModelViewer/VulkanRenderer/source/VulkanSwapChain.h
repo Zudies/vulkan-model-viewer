@@ -15,6 +15,8 @@ public:
 public:
     VulkanSwapChain();
 
+    bool IsValid() const;
+
     VkSurfaceKHR GetSurface() const;
     u32 GetIndex() const;
     VkFormat GetFormat() const;

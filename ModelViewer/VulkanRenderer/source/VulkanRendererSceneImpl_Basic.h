@@ -2,9 +2,14 @@
 
 #include "VulkanShaderModule.h"
 
+namespace Graphics {
+class Renderer_Base;
+} // namespace Graphics
+
 namespace Vulkan {
 
 class RendererImpl;
+class VulkanSwapChain;
 
 class RendererSceneImpl_Basic {
 public:
@@ -14,6 +19,12 @@ public:
     Graphics::GraphicsError Initialize(RendererImpl *parentRenderer);
     Graphics::GraphicsError Finalize();
     Graphics::GraphicsError Update(f64 deltaTime);
+
+private:
+    Graphics::GraphicsError _onDestroySwapChain(int idx);
+    Graphics::GraphicsError _onCreateSwapChain(int idx);
+    Graphics::GraphicsError _createRenderPass(VulkanSwapChain &swapChain);
+    Graphics::GraphicsError _createSwapChainFrameBuffers(VulkanSwapChain &swapChain);
 
 private:
     struct Vertex {

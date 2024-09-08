@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 namespace Graphics {
 
 class API_Base;
@@ -9,7 +11,7 @@ class RendererScene_Base;
 
 /*
   Renderer class creates and maintains a logical device for rendering
-  Rendering requests should generally be made to this class
+  This class is responsible for owning and maintaining general graphics resources (command pools, memory pools, etc.)
  */
 class Renderer_Base {
 public:
@@ -23,6 +25,13 @@ public:
     virtual GraphicsError Update(f64 deltaTime) = 0;
     virtual void SetSceneActive(RendererScene_Base *activeScene) = 0;
     virtual void SetSceneInactive(RendererScene_Base *inactiveScene) = 0;
+
+    // Called when a swap chain recreation is necessary
+    // OnDestroySwapChainFn should be called first before the renderer destroys the swap chain
+    // OnCreateSwapChainFn should be called only after the renderer as successfully recreated the swap chain
+    typedef std::function<GraphicsError(int)> OnDestroySwapChainFn;
+    typedef std::function<GraphicsError(int)> OnCreateSwapChainFn;
+    virtual void RegisterOnRecreateSwapChainFunc(OnDestroySwapChainFn destroyFunc, OnCreateSwapChainFn createFunc) = 0;
 
 };
 

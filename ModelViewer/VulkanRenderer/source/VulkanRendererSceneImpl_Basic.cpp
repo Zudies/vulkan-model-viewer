@@ -128,24 +128,17 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize(RendererImpl *parent
 #pragma endregion
 
 #pragma region Frame buffers (swap chain)
-    //TODO: frame buffers need to be recreated if swap chain is recreated
-    auto &swapChainImageViews = swapChain.GetImageViews();
-    m_swapChainFramebuffers.resize(swapChainImageViews.size());
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = m_renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &swapChainImageViews[i];
-        framebufferInfo.width = swapChain.GetExtents().width;
-        framebufferInfo.height = swapChain.GetExtents().height;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(m_renderer->m_device, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
-            LOG_ERROR(L"  Failed to create frame buffer for swap chain\n");
-            return Graphics::GraphicsError::INITIALIZATION_FAILED;
-        }
+    auto err = _createSwapChainFrameBuffers(swapChain);
+    if (err != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"  Failed to create frame buffer for swap chain\n");
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
+
+    // Register recreate swap chain func
+    m_renderer->RegisterOnRecreateSwapChainFunc(
+        std::bind(&RendererSceneImpl_Basic::_onDestroySwapChain, this, std::placeholders::_1),
+        std::bind(&RendererSceneImpl_Basic::_onCreateSwapChain, this, std::placeholders::_1)
+    );
 #pragma endregion
 
 #pragma region Dynamic states
@@ -332,6 +325,70 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
 }
 
 Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererSceneImpl_Basic::_onDestroySwapChain(int idx) {
+    // Only using index 0
+    if (idx == 0) {
+        // Destroy all framebuffers
+        for (auto framebuffer : m_swapChainFramebuffers) {
+            vkDestroyFramebuffer(m_renderer->m_device, framebuffer, VK_NULL_HANDLE);
+        }
+        m_swapChainFramebuffers.clear();
+    }
+
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererSceneImpl_Basic::_onCreateSwapChain(int idx) {
+    // Only using index 0
+    if (idx == 0) {
+        if (m_renderer->m_swapchains.size() <= 0) {
+            return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
+        }
+        auto &swapChain = m_renderer->m_swapchains[0];
+        if (!swapChain.IsValid()) {
+            return Graphics::GraphicsError::SWAPCHAIN_INVALID;
+        }
+
+        auto err = _createRenderPass(swapChain);
+        if (err != Graphics::GraphicsError::OK) {
+            return err;
+        }
+        return _createSwapChainFrameBuffers(swapChain);
+    }
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererSceneImpl_Basic::_createRenderPass(VulkanSwapChain &swapChain) {
+    // May need to delete previous render pass first
+    //if (m_renderPass) {
+    //    vkDestroyRenderPass(m_renderer->m_device, m_renderPass, VK_NULL_HANDLE);
+    //}
+
+    //TODO: Rebuilding render pass means rebuilding the entire pipeline
+
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererSceneImpl_Basic::_createSwapChainFrameBuffers(VulkanSwapChain &swapChain) {
+    auto &swapChainImageViews = swapChain.GetImageViews();
+    m_swapChainFramebuffers.resize(swapChainImageViews.size());
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = m_renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = &swapChainImageViews[i];
+        framebufferInfo.width = swapChain.GetExtents().width;
+        framebufferInfo.height = swapChain.GetExtents().height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(m_renderer->m_device, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
+            return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
+        }
+    }
     return Graphics::GraphicsError::OK;
 }
 

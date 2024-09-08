@@ -306,6 +306,8 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
 #error Unsupported platform
 #endif
             }
+            else if (feature == FEATURE_SUPPORTS_TRANSFER_OPERATIONS) {
+            }
             else {
                 ERROR_MSG(L"Unknown feature name: %hs", feature.c_str());
             }

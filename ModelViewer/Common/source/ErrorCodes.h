@@ -29,8 +29,17 @@ enum class GraphicsError {
     // Failed to create swapchain
     SWAPCHAIN_CREATE_ERROR,
 
+    // Swap chain is not valid
+    SWAPCHAIN_INVALID,
+
+    // Swap chain is out of date
+    SWAPCHAIN_OUT_OF_DATE,
+
     // Failed to create command pools
     COMMAND_POOL_CREATE_ERROR,
+
+    // Failed to allocate command buffers
+    COMMAND_BUFFER_CREATE_ERROR,
 
 };
 

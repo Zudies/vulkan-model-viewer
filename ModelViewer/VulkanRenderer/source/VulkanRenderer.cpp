@@ -43,6 +43,11 @@ void Renderer::SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) {
     m_impl->SetSceneInactive(inactiveScene);
 }
 
+void Renderer::RegisterOnRecreateSwapChainFunc(OnDestroySwapChainFn destroyFunc, OnCreateSwapChainFn createFunc) {
+    ASSERT(m_impl);
+    m_impl->RegisterOnRecreateSwapChainFunc(destroyFunc, createFunc);
+}
+
 RendererImpl *Renderer::GetImpl() {
     return m_impl;
 }

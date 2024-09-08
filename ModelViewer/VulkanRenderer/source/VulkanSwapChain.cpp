@@ -14,6 +14,10 @@ VulkanSwapChain::VulkanSwapChain()
     m_vkSwapchain(VK_NULL_HANDLE) {
 }
 
+bool VulkanSwapChain::IsValid() const {
+    return m_vkSwapchain;
+}
+
 VkSurfaceKHR VulkanSwapChain::GetSurface() const {
     return m_vkSurface;
 }
