@@ -71,8 +71,7 @@ void VulkanShaderModule::_createVkShaderModule(const uint8_t *data, size_t dataS
     createInfo.codeSize = dataSize;
     createInfo.pCode = reinterpret_cast<const uint32_t*>(data);
 
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(m_renderer->m_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(m_renderer->m_device, &createInfo, nullptr, &m_shaderModule) != VK_SUCCESS) {
         m_lastError = "Failed to create vkShaderModule";
     }
 }

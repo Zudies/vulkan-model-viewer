@@ -31,6 +31,7 @@ static char const JSON_REQ_SURFACES_PRESENT_MODE[] = {
 static char const *FEATURE_IS_DISCRETE_GPU = "DISCRETE_GPU";
 static char const *FEATURE_SUPPORTS_GRAPHICS_OPERATIONS = "GRAPHICS_OPERATIONS";
 static char const *FEATURE_SURFACE_WINDOW_PRESENT = "SURFACE_WINDOW_PRESENT";
+static char const *FEATURE_SUPPORTS_TRANSFER_OPERATIONS = "TRANSFER_OPERATIONS";
 
 // List of validation layers that will be enabled if validation is enabled
 static char const *VALIDATION_LAYERS[] = {

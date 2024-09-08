@@ -33,11 +33,12 @@ private:
 
 private:
     friend class VulkanShaderModule;
-    friend class RendererSceneImpl;
+    friend class RendererSceneImpl_Basic;
 
     enum QueueType {
         QUEUE_GRAPHICS = 0,
         QUEUE_PRESENT = 1,
+        QUEUE_TRANSFER = 2,
 
         QUEUE_COUNT
     };
@@ -47,11 +48,12 @@ private:
     VkDevice m_device;
     uint32_t m_queueIndices[QueueType::QUEUE_COUNT];
     VkQueue m_queues[QueueType::QUEUE_COUNT];
+    VkCommandPool m_commandPools[QueueType::QUEUE_COUNT];
 
     typedef std::vector<VulkanSwapChain> SwapChainArray;
     SwapChainArray m_swapchains;
 
-    typedef std::unordered_set<RendererScene*> SceneSet;
+    typedef std::unordered_set<Graphics::RendererScene_Base*> SceneSet;
     SceneSet m_activeScenes;
     SceneSet m_inactiveScenes;
 

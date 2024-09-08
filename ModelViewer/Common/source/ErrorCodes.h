@@ -29,6 +29,9 @@ enum class GraphicsError {
     // Failed to create swapchain
     SWAPCHAIN_CREATE_ERROR,
 
+    // Failed to create command pools
+    COMMAND_POOL_CREATE_ERROR,
+
 };
 
 } // namespace Graphics

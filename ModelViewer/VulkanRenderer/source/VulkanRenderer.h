@@ -17,6 +17,8 @@ public:
     virtual void SetSceneActive(Graphics::RendererScene_Base *activeScene) override;
     virtual void SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) override;
 
+    RendererImpl *GetImpl();
+
 private:
     RendererImpl *m_impl;
 };

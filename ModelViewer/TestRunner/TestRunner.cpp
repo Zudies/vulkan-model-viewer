@@ -7,6 +7,7 @@
 #include "WindowsFrameRateController.h"
 #include "VulkanAPI.h"
 #include "VulkanRenderer.h"
+#include "VulkanRendererScene_Basic.h"
 #include "JsonRendererRequirements.h"
 #include "Win32WindowSurface.h"
 #include <iostream>
@@ -89,6 +90,12 @@ int main()
     Graphics::Renderer_Base *renderer = new Vulkan::Renderer;
     renderer->Initialize(api, physicalDevice, &requirements);
 
+    // Create a basic scene to be rendered
+    Graphics::RendererScene_Base *scene = new Vulkan::RendererScene_Basic;
+    scene->Initialize(renderer);
+
+    renderer->SetSceneActive(scene);
+
     Performance::FrameRateController_Base *frameController = new Performance::WindowsFrameRateController;
     Performance::FrameRateControllerSettings frcSettings{};
 
@@ -132,6 +139,10 @@ int main()
             fpsUpdateTimer = 0.0;
         }
     }
+
+    scene->Finalize();
+    renderer->Finalize();
+    api->Finalize();
 
     return 0;
 }

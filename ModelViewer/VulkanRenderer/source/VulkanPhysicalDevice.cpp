@@ -38,7 +38,7 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::Re
         if (!vkSurface || vkSurface.value() == nullptr) {
             return false;
         }
-        RequiredQueueProperties queueRequirements{ {}, vkSurface };
+        RequiredQueueProperties queueRequirements{ 0, 0, vkSurface };
         auto queueIndex = GetQueueIndex(&queueRequirements);
         if (!queueIndex) {
             return false;
@@ -49,6 +49,18 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::Re
                 [](VkExtensionProperties const &ext) {
                     return strcmp(ext.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0;
             }) != m_supportedExtensions.end();
+    }
+
+    // TRANSFER_OPERATIONS
+    if (strcmp(featureName, FEATURE_SUPPORTS_TRANSFER_OPERATIONS) == 0) {
+        // Device must have a queue family that supports the VK_QUEUE_TRANSFER_BIT or the VK_QUEUE_GRAPHICS_BIT
+        RequiredQueueProperties queueRequirements{ VK_QUEUE_TRANSFER_BIT };
+        auto queueIndex = GetQueueIndex(&queueRequirements);
+        if (!queueIndex.has_value()) {
+            queueRequirements.queueFlags = VK_QUEUE_GRAPHICS_BIT;
+            return GetQueueIndex(&queueRequirements).has_value();
+        }
+        return true;
     }
 
     // Unknown feature
@@ -109,17 +121,20 @@ std::optional<uint32_t> VulkanPhysicalDevice::GetQueueIndex(RequiredQueuePropert
     // Find a queue that has all required flags
     for (size_t i = 0; i < m_queueFamilies.size(); ++i) {
         if ((m_queueFamilies[i].queueFlags & requirements->queueFlags) == requirements->queueFlags) {
-            // If surface support is required, check if the queue has present support
-            if (requirements->surfaceSupport) {
-                VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(m_device, static_cast<uint32_t>(i), *requirements->surfaceSupport, &presentSupport);
-                if (!presentSupport) {
-                    continue;
+            // Find a queue that does not have the not flags
+            if (((m_queueFamilies[i].queueFlags ^ requirements->notQueueFlags) | ~requirements->notQueueFlags) == std::numeric_limits<uint32_t>::max()) {
+                // If surface support is required, check if the queue has present support
+                if (requirements->surfaceSupport) {
+                    VkBool32 presentSupport = false;
+                    vkGetPhysicalDeviceSurfaceSupportKHR(m_device, static_cast<uint32_t>(i), *requirements->surfaceSupport, &presentSupport);
+                    if (!presentSupport) {
+                        continue;
+                    }
                 }
-            }
 
-            ret = static_cast<uint32_t>(i);
-            return ret;
+                ret = static_cast<uint32_t>(i);
+                return ret;
+            }
         }
     }
 

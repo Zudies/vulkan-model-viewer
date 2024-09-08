@@ -43,4 +43,8 @@ void Renderer::SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) {
     m_impl->SetSceneInactive(inactiveScene);
 }
 
+RendererImpl *Renderer::GetImpl() {
+    return m_impl;
+}
+
 } // namespace Vulkan

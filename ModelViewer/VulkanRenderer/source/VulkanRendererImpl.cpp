@@ -3,9 +3,11 @@
 #include "VulkanAPI.h"
 #include "VulkanAPIImpl.h"
 #include "VulkanFeaturesDefines.h"
-#include "VulkanRendererScene.h"
 #include "JsonRendererRequirements.h"
 #include "Win32WindowSurface.h"
+
+#include "VulkanRendererScene_Basic.h"
+
 #include <set>
 
 namespace Vulkan {
@@ -16,9 +18,8 @@ RendererImpl::RendererImpl()
     m_device(0),
     m_queueIndices{},
     m_queues{},
+    m_commandPools{},
     m_useValidation(false) {
-
-    memset(m_queues, 0, sizeof(m_queues));
 }
 
 RendererImpl::~RendererImpl() {
@@ -87,6 +88,25 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
 
             m_vkExtensionsList.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         }
+        else if (it == FEATURE_SUPPORTS_TRANSFER_OPERATIONS) {
+            VulkanPhysicalDevice::RequiredQueueProperties queueRequirements{};
+            queueRequirements.queueFlags |= VK_QUEUE_TRANSFER_BIT;
+            queueRequirements.notQueueFlags |= VK_QUEUE_COMPUTE_BIT;
+            auto queueIndex = m_physicalDevice->GetQueueIndex(&queueRequirements);
+            if (!queueIndex) {
+                // Fall back to graphics queue if no dedicated transfer queue
+                queueRequirements.queueFlags = VK_QUEUE_GRAPHICS_BIT;
+                queueRequirements.notQueueFlags = 0;
+                queueIndex = m_physicalDevice->GetQueueIndex(&queueRequirements);
+
+                if (!queueIndex) {
+                    LOG_ERROR("Unable to find queue that supports 'SUPPORTS_TRANSFER_OPERATIONS'\n");
+                    return Graphics::GraphicsError::NO_SUPPORTED_DEVICE;
+                }
+            }
+            queueIndices[QueueType::QUEUE_TRANSFER] = *queueIndex;
+            uniqueQueues.emplace(*queueIndex);
+        }
         else {
             ERROR_MSG(L"Unknown feature name: %hs", it.c_str());
         }
@@ -154,11 +174,37 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     _createSwapChain(requirements);
     LOG_INFO("Swap chains created successfully\n");
 
+    LOG_INFO("Creating command pools\n");
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_GRAPHICS];
+
+    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPools[QUEUE_GRAPHICS]) != VK_SUCCESS) {
+        LOG_ERROR("Unable to create command pool for GRAPHICS queue\n");
+        return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
+    }
+
+    // Note: This can technically fail if it's the graphics queue and max pools already created?
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_TRANSFER];
+    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPools[QUEUE_TRANSFER]) != VK_SUCCESS) {
+        LOG_ERROR("Unable to create command pool for TRANSFER queue\n");
+        return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
+    }
+    LOG_INFO("Command pools created successfully\n");
+
     return Graphics::GraphicsError::OK;
 }
 
 Graphics::GraphicsError RendererImpl::Finalize() {
     ASSERT(m_api->m_vkInstance);
+
+    for (int i = 0; i < QUEUE_COUNT; ++i) {
+        if (m_commandPools[i]) {
+            vkDestroyCommandPool(m_device, m_commandPools[i], nullptr);
+        }
+    }
 
     if (m_device) {
         vkDestroyDevice(m_device, nullptr);
@@ -188,15 +234,13 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
 }
 
 void RendererImpl::SetSceneActive(Graphics::RendererScene_Base *activeScene) {
-    RendererScene *vulkanScene = static_cast<RendererScene*>(activeScene);
-    m_inactiveScenes.erase(vulkanScene);
-    m_activeScenes.emplace(vulkanScene);
+    m_inactiveScenes.erase(activeScene);
+    m_activeScenes.emplace(activeScene);
 }
 
 void RendererImpl::SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) {
-    RendererScene *vulkanScene = static_cast<RendererScene *>(inactiveScene);
-    m_activeScenes.erase(vulkanScene);
-    m_inactiveScenes.emplace(vulkanScene);
+    m_activeScenes.erase(inactiveScene);
+    m_inactiveScenes.emplace(inactiveScene);
 }
 
 Graphics::GraphicsError RendererImpl::_createSwapChain(Graphics::RendererRequirements *requirements) {

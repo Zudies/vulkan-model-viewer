@@ -26,6 +26,7 @@ public:
 
     struct RequiredQueueProperties {
         uint32_t queueFlags;
+        uint32_t notQueueFlags;
         std::optional<VkSurfaceKHR> surfaceSupport;
     };
 

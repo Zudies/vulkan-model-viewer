@@ -41,10 +41,10 @@
     <ClInclude Include="source\VulkanSwapChain.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
-    <ClInclude Include="source\VulkanRendererScene.h">
+    <ClInclude Include="source\VulkanRendererScene_Basic.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
-    <ClInclude Include="source\VulkanRendererSceneImpl.h">
+    <ClInclude Include="source\VulkanRendererSceneImpl_Basic.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
     <ClInclude Include="source\VulkanShaderModule.h">
@@ -76,10 +76,10 @@
     <ClCompile Include="source\VulkanSwapChain.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
-    <ClCompile Include="source\VulkanRendererScene.cpp">
+    <ClCompile Include="source\VulkanRendererScene_Basic.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
-    <ClCompile Include="source\VulkanRendererSceneImpl.cpp">
+    <ClCompile Include="source\VulkanRendererSceneImpl_Basic.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanShaderModule.cpp">

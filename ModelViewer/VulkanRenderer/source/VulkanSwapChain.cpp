@@ -6,7 +6,7 @@ namespace Vulkan {
 
 VulkanSwapChain::VulkanSwapChain()
   : m_vkSurface(VK_NULL_HANDLE),
-    m_index(-1),
+    m_index(std::numeric_limits<u32>::max()),
     m_format(VK_FORMAT_UNDEFINED),
     m_colorSpace(VK_COLOR_SPACE_MAX_ENUM_KHR),
     m_presentMode(VK_PRESENT_MODE_MAX_ENUM_KHR),

@@ -1,6 +1,6 @@
 {
     "useValidation": true,
-    "requiredFeatures": [ "DISCRETE_GPU", "GRAPHICS_OPERATIONS", "SURFACE_WINDOW_PRESENT" ],
+    "requiredFeatures": [ "DISCRETE_GPU", "GRAPHICS_OPERATIONS", "SURFACE_WINDOW_PRESENT", "TRANSFER_OPERATIONS" ],
     "optionalFeatures": [],
     "surfaces": [
         {
