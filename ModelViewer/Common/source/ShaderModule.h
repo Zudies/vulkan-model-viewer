@@ -19,7 +19,7 @@ public:
     void CreateFromSpirv(std::string const &shaderFile);
 
     const uint8_t *GetData() const;
-    DataArray &GetInternalData();
+    size_t GetDataSize() const;
 
 private:
     void _readFileToData(std::string const &filepath);

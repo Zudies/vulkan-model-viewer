@@ -4,9 +4,11 @@
 
 namespace Vulkan {
 
+class RendererImpl;
+
 class VulkanShaderModule {
 public:
-    VulkanShaderModule();
+    VulkanShaderModule(RendererImpl *parentRenderer);
     VulkanShaderModule(VulkanShaderModule const &) = delete;
     VulkanShaderModule &operator=(VulkanShaderModule const &) = delete;
     ~VulkanShaderModule();
@@ -19,11 +21,15 @@ public:
 
     void Compile(std::string const &compilerArgs);
 
-    const uint8_t *GetData() const;
+    VkShaderModule GetShaderModule() const;
 
 private:
+    void _createVkShaderModule(const uint8_t *data, size_t dataSize);
+
+private:
+    RendererImpl *m_renderer;
     Graphics::ShaderModule m_source;
-    Graphics::ShaderModule::DataArray m_spirvData;
+    VkShaderModule m_shaderModule;
     std::string m_lastError;
 
 };

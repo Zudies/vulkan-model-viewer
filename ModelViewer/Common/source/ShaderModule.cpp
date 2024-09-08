@@ -51,8 +51,8 @@ const uint8_t *ShaderModule::GetData() const {
     return m_data.data();
 }
 
-ShaderModule::DataArray &ShaderModule::GetInternalData() {
-    return m_data;
+size_t ShaderModule::GetDataSize() const {
+    return m_data.size();
 }
 
 void ShaderModule::_readFileToData(std::string const &filepath) {

@@ -94,4 +94,12 @@
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="resource\basic-frag.frag">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\basic-vert.vert">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
 </Project>

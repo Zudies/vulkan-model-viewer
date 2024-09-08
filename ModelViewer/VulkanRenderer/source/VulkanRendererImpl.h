@@ -32,6 +32,9 @@ private:
     void _cleanupSwapChain();
 
 private:
+    friend class VulkanShaderModule;
+    friend class RendererSceneImpl;
+
     enum QueueType {
         QUEUE_GRAPHICS = 0,
         QUEUE_PRESENT = 1,
