@@ -11,4 +11,7 @@
 #include "Common.h"
 #include "ErrorCodes.h"
 
+#include <string>
+#include <vector>
+
 #endif //PCH_H

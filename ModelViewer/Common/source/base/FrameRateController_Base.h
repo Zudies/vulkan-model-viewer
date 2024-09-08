@@ -11,6 +11,7 @@ public:
 
     FrameRateController_Base();
     FrameRateController_Base(FrameRateController_Base const &) = delete;
+    FrameRateController_Base &operator=(FrameRateController_Base const &) = delete;
     virtual ~FrameRateController_Base() = 0;
 
     virtual void Initialize(FrameRateControllerSettings *settings) = 0;

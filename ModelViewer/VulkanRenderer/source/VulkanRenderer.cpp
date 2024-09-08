@@ -33,4 +33,14 @@ Graphics::GraphicsError Renderer::Update(f64 deltaTime) {
     return m_impl->Update(deltaTime);
 }
 
+void Renderer::SetSceneActive(Graphics::RendererScene_Base *activeScene) {
+    ASSERT(m_impl);
+    m_impl->SetSceneActive(activeScene);
+}
+
+void Renderer::SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) {
+    ASSERT(m_impl);
+    m_impl->SetSceneInactive(inactiveScene);
+}
+
 } // namespace Vulkan

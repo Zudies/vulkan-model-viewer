@@ -41,6 +41,15 @@
     <ClInclude Include="source\VulkanSwapChain.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanRendererScene.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanRendererSceneImpl.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanShaderModule.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -65,6 +74,15 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanSwapChain.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanRendererScene.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanRendererSceneImpl.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanShaderModule.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

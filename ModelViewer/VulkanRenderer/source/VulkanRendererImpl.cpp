@@ -3,6 +3,7 @@
 #include "VulkanAPI.h"
 #include "VulkanAPIImpl.h"
 #include "VulkanFeaturesDefines.h"
+#include "VulkanRendererScene.h"
 #include "JsonRendererRequirements.h"
 #include "Win32WindowSurface.h"
 #include <set>
@@ -169,9 +170,33 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
 Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     ASSERT(m_api->m_vkInstance);
-    UNUSED_PARAM(deltaTime);
+
+    // Update all active scenes
+    for (auto *scene : m_activeScenes) {
+        auto error = scene->Update(deltaTime);
+        if (error != Graphics::GraphicsError::OK) {
+            return error;
+        }
+    }
+
+    //TODO: ? Update all inactive scenes
+    //for (auto *scene : m_inactiveScenes) {
+
+    //}
 
     return Graphics::GraphicsError::OK;
+}
+
+void RendererImpl::SetSceneActive(Graphics::RendererScene_Base *activeScene) {
+    RendererScene *vulkanScene = static_cast<RendererScene*>(activeScene);
+    m_inactiveScenes.erase(vulkanScene);
+    m_activeScenes.emplace(vulkanScene);
+}
+
+void RendererImpl::SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) {
+    RendererScene *vulkanScene = static_cast<RendererScene *>(inactiveScene);
+    m_activeScenes.erase(vulkanScene);
+    m_inactiveScenes.emplace(vulkanScene);
 }
 
 Graphics::GraphicsError RendererImpl::_createSwapChain(Graphics::RendererRequirements *requirements) {

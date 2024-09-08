@@ -5,6 +5,7 @@
 
 namespace Graphics {
 class RendererRequirements;
+class RendererScene_Base;
 }
 
 namespace Vulkan {
@@ -12,6 +13,7 @@ namespace Vulkan {
 class API;
 class APIImpl;
 class VulkanPhysicalDevice;
+class RendererScene;
 
 class RendererImpl {
 public:
@@ -21,6 +23,9 @@ public:
     Graphics::GraphicsError Initialize(API *api, VulkanPhysicalDevice *physicalDevice, Graphics::RendererRequirements *requirements);
     Graphics::GraphicsError Finalize();
     Graphics::GraphicsError Update(f64 deltaTime);
+
+    void SetSceneActive(Graphics::RendererScene_Base *activeScene);
+    void SetSceneInactive(Graphics::RendererScene_Base *inactiveScene);
 
 private:
     Graphics::GraphicsError _createSwapChain(Graphics::RendererRequirements *requirements);
@@ -40,9 +45,12 @@ private:
     uint32_t m_queueIndices[QueueType::QUEUE_COUNT];
     VkQueue m_queues[QueueType::QUEUE_COUNT];
 
-    // Swap chain
     typedef std::vector<VulkanSwapChain> SwapChainArray;
     SwapChainArray m_swapchains;
+
+    typedef std::unordered_set<RendererScene*> SceneSet;
+    SceneSet m_activeScenes;
+    SceneSet m_inactiveScenes;
 
     bool m_useValidation;
 
