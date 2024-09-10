@@ -30,7 +30,7 @@ public:
 
     void RegisterOnRecreateSwapChainFunc(Graphics::Renderer_Base::OnDestroySwapChainFn destroyFunc, Graphics::Renderer_Base::OnCreateSwapChainFn createFunc);
 
-private:
+public:
     enum QueueType {
         QUEUE_GRAPHICS = 0,
         QUEUE_PRESENT = 1,
@@ -44,6 +44,21 @@ private:
     // This function can fail if a swap chain is invalidated
     // In this event, the scene should immediately stop rendering the current frame and OnRecreateSwapChain funcs will be called on the next frame
     Graphics::GraphicsError AcquireNextSwapChainImage(int swapChainIdx, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t *imageIdxOut);
+
+    Graphics::GraphicsError GetMemoryTypeIndex(uint32_t typeFilter, uint32_t typeFlags, uint32_t poolFlags, uint32_t *out);
+
+    VkDevice GetDevice() const;
+
+    uint32_t GetQueueIndex(QueueType type) const;
+
+    // Allows batch submitting one time transfer queue operations at the start of the next frame
+    // beginFunc is called at the start to record commands
+    // endFunc is called after all commands have been run
+    // beginCommandBuffer will have already been called on the oneTimeCommandBuffer and endCommandBuffer will be automatically called afterwards
+    typedef std::function<void(VkCommandBuffer oneTimeCommandBuffer)> TransferBeginFunc;
+    typedef std::function<void()> TransferEndFunc;
+    typedef std::vector<std::pair<TransferBeginFunc, TransferEndFunc>> TransferFunctions;
+    void RegisterTransfer(TransferBeginFunc beginFunc, TransferEndFunc endFunc);
 
 private:
     Graphics::GraphicsError _createSwapChain(Graphics::RendererRequirements *requirements, int idx = -1);
@@ -79,6 +94,9 @@ private:
     typedef std::vector<char const*> StringLiteralArray;
     StringLiteralArray m_vkExtensionsList;
     StringLiteralArray m_vkLayersList;
+
+    TransferFunctions m_registeredTransfers;
+    VkFence m_transferFence;
 
 };
 

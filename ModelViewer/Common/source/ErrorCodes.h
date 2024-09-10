@@ -6,6 +6,9 @@ enum class GraphicsError {
     UNKNOWN = -1,
     OK,
 
+    // Device lost
+    DEVICE_LOST,
+
     // Required API version is not supported by hardware
     UNSUPPORTED_API_VERSION,
 
@@ -40,6 +43,15 @@ enum class GraphicsError {
 
     // Failed to allocate command buffers
     COMMAND_BUFFER_CREATE_ERROR,
+
+    // Memory pool could not be found
+    NO_SUPPORTED_MEMORY,
+
+    // Error occurred when submitting command buffers
+    QUEUE_ERROR,
+
+    // A device memory transfer failed
+    TRANSFER_FAILED,
 
 };
 

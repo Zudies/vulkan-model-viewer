@@ -83,6 +83,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="source\VulkanBuffer.h" />
     <ClInclude Include="source\VulkanRendererScene_Basic.h" />
     <ClInclude Include="source\VulkanRendererSceneImpl_Basic.h" />
     <ClInclude Include="source\VulkanShaderModule.h" />
@@ -94,6 +95,7 @@
     <ClInclude Include="source\VulkanPhysicalDevice.h" />
     <ClInclude Include="source\VulkanRenderer.h" />
     <ClInclude Include="source\VulkanRendererImpl.h" />
+    <ClInclude Include="source\VulkanVertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -102,6 +104,7 @@
     </ClCompile>
     <ClCompile Include="source\VulkanAPI.cpp" />
     <ClCompile Include="source\VulkanAPIImpl.cpp" />
+    <ClCompile Include="source\VulkanBuffer.cpp" />
     <ClCompile Include="source\VulkanErrorToGraphicsError.cpp" />
     <ClCompile Include="source\VulkanPhysicalDevice.cpp" />
     <ClCompile Include="source\VulkanRenderer.cpp" />
@@ -110,6 +113,9 @@
     <ClCompile Include="source\VulkanRendererSceneImpl_Basic.cpp" />
     <ClCompile Include="source\VulkanShaderModule.cpp" />
     <ClCompile Include="source\VulkanSwapChain.cpp" />
+    <ClInclude Include="source\VulkanVertexBuffer.tpp">
+      <FileType>Document</FileType>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="$(VULKAN_SDK)\Lib\vulkan-1.lib" />

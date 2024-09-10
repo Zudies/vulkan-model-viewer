@@ -21,7 +21,8 @@ RendererImpl::RendererImpl()
     m_queues{},
     m_commandPools{},
     m_swapChainOutOfDate(0),
-    m_useValidation(false) {
+    m_useValidation(false),
+    m_transferFence(VK_NULL_HANDLE) {
 }
 
 RendererImpl::~RendererImpl() {
@@ -197,11 +198,20 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     }
     LOG_INFO("Command pools created successfully\n");
 
+    // Create transfer sync objects
+    VkFenceCreateInfo transferFenceInfo{};
+    transferFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    vkCreateFence(m_device, &transferFenceInfo, nullptr, &m_transferFence);
+
     return Graphics::GraphicsError::OK;
 }
 
 Graphics::GraphicsError RendererImpl::Finalize() {
     ASSERT(m_api->m_vkInstance);
+
+    vkDeviceWaitIdle(m_device);
+
+    vkDestroyFence(m_device, m_transferFence, VK_NULL_HANDLE);
 
     for (int i = 0; i < QUEUE_COUNT; ++i) {
         if (m_commandPools[i]) {
@@ -219,6 +229,45 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
 Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     ASSERT(m_api->m_vkInstance);
+
+    // Check if any transfer commands need to be submitted
+    VkCommandBuffer transferCommandBuffer = VK_NULL_HANDLE;
+    if (!m_registeredTransfers.empty()) {
+        auto err = AllocateCommandBuffers(QUEUE_TRANSFER, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, &transferCommandBuffer);
+        if (err != Graphics::GraphicsError::OK) {
+            return err;
+        }
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (vkBeginCommandBuffer(transferCommandBuffer, &beginInfo) != VK_SUCCESS) {
+            vkFreeCommandBuffers(m_device, m_commandPools[QUEUE_TRANSFER], 1, &transferCommandBuffer);
+            return Graphics::GraphicsError::COMMAND_BUFFER_CREATE_ERROR;
+        }
+
+        for (auto &transferFunc : m_registeredTransfers) {
+            transferFunc.first(transferCommandBuffer);
+        }
+
+        // Submit the command buffer and setup fences
+        vkEndCommandBuffer(transferCommandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &transferCommandBuffer;
+
+        vkResetFences(m_device, 1, &m_transferFence);
+        auto vkErr = vkQueueSubmit(m_queues[QUEUE_TRANSFER], 1, &submitInfo, m_transferFence);
+        if (vkErr == VK_ERROR_DEVICE_LOST) {
+            //TODO: Need to recreate device
+            return Graphics::GraphicsError::DEVICE_LOST;
+        }
+        else if (vkErr != VK_SUCCESS) {
+            return Graphics::GraphicsError::QUEUE_ERROR;
+        }
+    }
 
     // Check for any swap chain that is out of date
     if (m_swapChainOutOfDate) {
@@ -244,6 +293,17 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
                 }
             }
         }
+    }
+
+    // If there were transfer operations, wait for them to finish
+    if (!m_registeredTransfers.empty()) {
+        vkWaitForFences(m_device, 1, &m_transferFence, VK_TRUE, UINT64_MAX);
+        vkFreeCommandBuffers(m_device, m_commandPools[QUEUE_TRANSFER], 1, &transferCommandBuffer);
+
+        for (auto &transferFunc : m_registeredTransfers) {
+            transferFunc.second();
+        }
+        m_registeredTransfers.clear();
     }
 
     // Update all active scenes
@@ -507,7 +567,32 @@ void RendererImpl::_cleanupSwapChain(int idx) {
     }
 }
 
+Graphics::GraphicsError RendererImpl::GetMemoryTypeIndex(uint32_t typeFilter, uint32_t typeFlags, uint32_t poolFlags, uint32_t *out) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice->GetDevice(), &memProperties);
 
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i))
+            && (memProperties.memoryTypes[i].propertyFlags & typeFlags) == typeFlags
+            && (memProperties.memoryHeaps[memProperties.memoryTypes[i].heapIndex].flags & poolFlags) == poolFlags) {
 
+            *out = i;
+            return Graphics::GraphicsError::OK;
+        }
+    }
+    return Graphics::GraphicsError::NO_SUPPORTED_MEMORY;
+}
+
+VkDevice RendererImpl::GetDevice() const {
+    return m_device;
+}
+
+uint32_t RendererImpl::GetQueueIndex(QueueType type) const {
+    return m_queueIndices[type];
+}
+
+void RendererImpl::RegisterTransfer(TransferBeginFunc beginFunc, TransferEndFunc endFunc) {
+    m_registeredTransfers.emplace_back(std::make_pair(beginFunc, endFunc));
+}
 
 } // namespace Vulkan

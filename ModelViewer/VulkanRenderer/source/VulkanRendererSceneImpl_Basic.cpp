@@ -28,32 +28,32 @@ std::array<VkVertexInputAttributeDescription, 2> RendererSceneImpl_Basic::Vertex
     return attributeDescriptions;
 }
 
-RendererSceneImpl_Basic::RendererSceneImpl_Basic()
-  : m_renderer(VK_NULL_HANDLE),
+RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
+  : m_testRenderObject(parentRenderer),
+    m_renderer(parentRenderer),
     m_renderPass(VK_NULL_HANDLE),
     m_vertDescriptorSetLayout(VK_NULL_HANDLE),
     m_pipelineLayout(VK_NULL_HANDLE),
     m_pipeline(VK_NULL_HANDLE) {
+    ASSERT(parentRenderer);
 }
 
 RendererSceneImpl_Basic::~RendererSceneImpl_Basic() {
 }
 
-Graphics::GraphicsError RendererSceneImpl_Basic::Initialize(RendererImpl *parentRenderer) {
-    m_renderer = parentRenderer;
-
+Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     LOG_INFO(L"Creating pipeline for 'Basic'\n");
     //TODO: Read overrides from UI
 
 #pragma region Shader modules
-    VulkanShaderModule vertShader(parentRenderer);
+    VulkanShaderModule vertShader(m_renderer);
     vertShader.CreateFromSpirv("basic-vert.spv");
     if (!vertShader.GetLastError().empty()) {
         LOG_ERROR(L"  Vertex shader creation error: %hs\n", vertShader.GetLastError().c_str());
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
-    VulkanShaderModule fragShader(parentRenderer);
+    VulkanShaderModule fragShader(m_renderer);
     fragShader.CreateFromSpirv("basic-frag.spv");
     if (!fragShader.GetLastError().empty()) {
         LOG_ERROR(L"  Fragment shader creation error: %hs\n", fragShader.GetLastError().c_str());
@@ -306,6 +306,27 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize(RendererImpl *parent
 #pragma endregion
 
     LOG_INFO(L"Graphics pipeline successfully created\n");
+    LOG_INFO(L"Creating scene objects\n");
+
+#pragma region Scene objects
+    m_testRenderObject.SetVertexCount(4);
+    Vertex *vertexData = reinterpret_cast<Vertex*>(m_testRenderObject.GetVertexData());
+    m_testRenderObject.SetIndexCount(6);
+    uint16_t *indexData = reinterpret_cast<uint16_t*>(m_testRenderObject.GetIndexData());
+
+    vertexData[0] = { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f} };
+    vertexData[1] = { {0.5f, -0.5f}, { 0.0f, 1.0f, 0.0f } };
+    vertexData[2] = { {0.5f, 0.5f}, {0.0f, 0.0f, 1.0f} };
+    vertexData[3] = { {-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f} };
+    indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
+    indexData[3] = 2; indexData[4] = 3; indexData[5] = 0;
+
+    m_testRenderObject.FlushVertexToDevice();
+    m_testRenderObject.FlushIndexToDevice();
+#pragma endregion
+
+    LOG_INFO(L"Scene objects successfully created\n");
+
     return Graphics::GraphicsError::OK;
 }
 

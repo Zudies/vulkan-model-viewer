@@ -1,6 +1,7 @@
 #pragma once
 
 #include "VulkanShaderModule.h"
+#include "VulkanVertexBuffer.h"
 
 namespace Graphics {
 class Renderer_Base;
@@ -13,10 +14,10 @@ class VulkanSwapChain;
 
 class RendererSceneImpl_Basic {
 public:
-    RendererSceneImpl_Basic();
+    RendererSceneImpl_Basic(RendererImpl *parentRenderer);
     ~RendererSceneImpl_Basic();
 
-    Graphics::GraphicsError Initialize(RendererImpl *parentRenderer);
+    Graphics::GraphicsError Initialize();
     Graphics::GraphicsError Finalize();
     Graphics::GraphicsError Update(f64 deltaTime);
 
@@ -35,6 +36,8 @@ private:
         static VkVertexInputBindingDescription getBindingDescription();
         static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
     };
+    typedef VulkanVertexBuffer<Vertex> BasicObject;
+    BasicObject m_testRenderObject;
 
 private:
     RendererImpl *m_renderer;

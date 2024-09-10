@@ -17,8 +17,8 @@ RendererScene_Basic::~RendererScene_Basic() {
 Graphics::GraphicsError RendererScene_Basic::Initialize(Graphics::Renderer_Base *parentRenderer) {
     ASSERT(!m_impl);
 
-    m_impl = new RendererSceneImpl_Basic;
-    return m_impl->Initialize(static_cast<Renderer*>(parentRenderer)->GetImpl());
+    m_impl = new RendererSceneImpl_Basic(static_cast<Renderer*>(parentRenderer)->GetImpl());
+    return m_impl->Initialize();
 }
 
 Graphics::GraphicsError RendererScene_Basic::Finalize() {
