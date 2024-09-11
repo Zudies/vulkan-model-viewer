@@ -17,7 +17,9 @@ public:
 
     virtual GraphicsError Initialize(Renderer_Base *parentRenderer) = 0;
     virtual GraphicsError Finalize() = 0;
+    virtual GraphicsError EarlyUpdate(f64 deltaTime) = 0;
     virtual GraphicsError Update(f64 deltaTime) = 0;
+    virtual GraphicsError LateUpdate(f64 deltaTime) = 0;
 
 };
 

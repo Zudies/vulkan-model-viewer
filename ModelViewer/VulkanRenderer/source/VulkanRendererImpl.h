@@ -51,7 +51,7 @@ public:
 
     uint32_t GetQueueIndex(QueueType type) const;
 
-    // Allows batch submitting one time transfer queue operations at the start of the next frame
+    // Allows batch submitting one time transfer queue operations before the next Update step
     // beginFunc is called at the start to record commands
     // endFunc is called after all commands have been run
     // beginCommandBuffer will have already been called on the oneTimeCommandBuffer and endCommandBuffer will be automatically called afterwards
@@ -64,6 +64,7 @@ private:
     Graphics::GraphicsError _createSwapChain(Graphics::RendererRequirements *requirements, int idx = -1);
     Graphics::GraphicsError _createSingleSwapChain(Graphics::RendererRequirements *requirements, int idx);
     void _cleanupSwapChain(int idx = -1);
+    void _cleanupSwapChainSingle(int idx);
 
 private:
     friend class VulkanShaderModule;

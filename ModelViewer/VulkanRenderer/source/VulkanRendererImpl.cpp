@@ -219,6 +219,13 @@ Graphics::GraphicsError RendererImpl::Finalize() {
         }
     }
 
+    for (int i = 0; i < m_swapchains.size(); ++i) {
+        for (auto &callback : m_swapChainFuncs) {
+            callback.first(i);
+        }
+    }
+    _cleanupSwapChain(-1);
+
     if (m_device) {
         vkDestroyDevice(m_device, nullptr);
         m_device = 0;
@@ -229,6 +236,15 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
 Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     ASSERT(m_api->m_vkInstance);
+
+    // Early update step
+    for (auto *scene : m_activeScenes) {
+        auto error = scene->EarlyUpdate(deltaTime);
+        // Swap chain out of date is non-fatal and will be dealt with after this step
+        if (error != Graphics::GraphicsError::OK && error != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+            return error;
+        }
+    }
 
     // Check if any transfer commands need to be submitted
     VkCommandBuffer transferCommandBuffer = VK_NULL_HANDLE;
@@ -269,32 +285,6 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
         }
     }
 
-    // Check for any swap chain that is out of date
-    if (m_swapChainOutOfDate) {
-        for (int i = 0; m_swapChainOutOfDate && i < (sizeof(m_swapChainOutOfDate) * 8); ++i) {
-            if (m_swapChainOutOfDate & (1u << i)) {
-                // Call destroy callbacks
-                for (auto &callback : m_swapChainFuncs) {
-                    callback.first(i);
-                }
-
-                // Try to recreate swapchain
-                auto result = _createSwapChain(m_requirements, i);
-
-                // Call create callbacks
-                if (result == Graphics::GraphicsError::OK) {
-                    for (auto &callback : m_swapChainFuncs) {
-                        callback.second(i);
-                    }
-                    m_swapChainOutOfDate ^= (1u << i);
-                }
-                else if (result != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
-                    return result;
-                }
-            }
-        }
-    }
-
     // If there were transfer operations, wait for them to finish
     if (!m_registeredTransfers.empty()) {
         vkWaitForFences(m_device, 1, &m_transferFence, VK_TRUE, UINT64_MAX);
@@ -322,6 +312,43 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     //for (auto *scene : m_inactiveScenes) {
 
     //}
+
+    // Late update step
+    for (auto *scene : m_activeScenes) {
+        auto error = scene->LateUpdate(deltaTime);
+        // Swap chain out of date is non-fatal and will be dealt with after this step
+        if (error != Graphics::GraphicsError::OK && error != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+            return error;
+        }
+    }
+
+    // Check for any swap chain that is out of date
+    if (m_swapChainOutOfDate) {
+        for (int i = 0; m_swapChainOutOfDate && i < (sizeof(m_swapChainOutOfDate) * 8); ++i) {
+            if (m_swapChainOutOfDate & (1u << i)) {
+                vkDeviceWaitIdle(m_device);
+
+                // Call destroy callbacks
+                for (auto &callback : m_swapChainFuncs) {
+                    callback.first(i);
+                }
+
+                // Try to recreate swapchain
+                auto result = _createSwapChain(m_requirements, i);
+
+                // Call create callbacks
+                if (result == Graphics::GraphicsError::OK) {
+                    for (auto &callback : m_swapChainFuncs) {
+                        callback.second(i);
+                    }
+                    m_swapChainOutOfDate ^= (1u << i);
+                }
+                else if (result != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+                    return result;
+                }
+            }
+        }
+    }
 
     return Graphics::GraphicsError::OK;
 }
@@ -367,11 +394,11 @@ Graphics::GraphicsError RendererImpl::AcquireNextSwapChainImage(int swapChainIdx
     }
 
     VkResult result = vkAcquireNextImageKHR(m_device, swapChain.GetSwapchain(), timeout, semaphore, fence, imageIdxOut);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         m_swapChainOutOfDate |= 1u << swapChainIdx;
         return Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE;
     }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    else if (result != VK_SUCCESS) {
         return Graphics::GraphicsError::SWAPCHAIN_INVALID;
     }
     return Graphics::GraphicsError::OK;
@@ -548,23 +575,27 @@ Graphics::GraphicsError RendererImpl::_createSingleSwapChain(Graphics::RendererR
 
 void RendererImpl::_cleanupSwapChain(int idx) {
     vkDeviceWaitIdle(m_device);
-    for (int i = 0; i < m_swapchains.size(); ++i) {
-        if (idx == -1 || i == idx) {
-            auto &imageViews = m_swapchains[i].GetImageViews();
 
-            for (auto imageView : imageViews) {
-                vkDestroyImageView(m_device, imageView, nullptr);
-            }
-
-            vkDestroySwapchainKHR(m_device, m_swapchains[i].GetSwapchain(), nullptr);
-        }
-    }
     if (idx == -1) {
+        for (int i = 0; i < m_swapchains.size(); ++i) {
+            _cleanupSwapChainSingle(i);
+        }
         m_swapchains.clear();
     }
     else {
+        _cleanupSwapChainSingle(idx);
         m_swapchains[idx] = VulkanSwapChain();
     }
+}
+
+void RendererImpl::_cleanupSwapChainSingle(int idx) {
+    auto &imageViews = m_swapchains[idx].GetImageViews();
+
+    for (auto imageView : imageViews) {
+        vkDestroyImageView(m_device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(m_device, m_swapchains[idx].GetSwapchain(), nullptr);
 }
 
 Graphics::GraphicsError RendererImpl::GetMemoryTypeIndex(uint32_t typeFilter, uint32_t typeFlags, uint32_t poolFlags, uint32_t *out) {

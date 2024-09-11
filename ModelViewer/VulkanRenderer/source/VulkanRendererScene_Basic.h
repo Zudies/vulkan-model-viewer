@@ -16,7 +16,9 @@ public:
 
     virtual Graphics::GraphicsError Initialize(Graphics::Renderer_Base *parentRenderer) override;
     virtual Graphics::GraphicsError Finalize() override;
+    virtual Graphics::GraphicsError EarlyUpdate(f64 deltaTime) override;
     virtual Graphics::GraphicsError Update(f64 deltaTime) override;
+    virtual Graphics::GraphicsError LateUpdate(f64 deltaTime) override;
 
 private:
     RendererSceneImpl_Basic *m_impl;

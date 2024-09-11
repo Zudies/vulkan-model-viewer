@@ -16,9 +16,11 @@ public:
 
     void SetVertexCount(size_t count);
     void *GetVertexData();
+    size_t GetVertexCount() const;
 
     void SetIndexCount(size_t count);
     void *GetIndexData();
+    size_t GetIndexCount() const;
 
     Graphics::GraphicsError FlushVertexToDevice();
     Graphics::GraphicsError FlushIndexToDevice();

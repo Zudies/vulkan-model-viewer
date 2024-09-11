@@ -47,7 +47,7 @@ enum class GraphicsError {
     // Memory pool could not be found
     NO_SUPPORTED_MEMORY,
 
-    // Error occurred when submitting command buffers
+    // Error occurred when recording or submitting command buffers
     QUEUE_ERROR,
 
     // A device memory transfer failed

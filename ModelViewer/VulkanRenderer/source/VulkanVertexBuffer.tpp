@@ -33,6 +33,11 @@ void *VulkanVertexBuffer<VertexType>::GetVertexData() {
 }
 
 template<class VertexType>
+size_t VulkanVertexBuffer<VertexType>::GetVertexCount() const {
+    return m_vertexData.size();
+}
+
+template<class VertexType>
 void VulkanVertexBuffer<VertexType>::SetIndexCount(size_t count) {
     m_indexData.resize(count);
 
@@ -46,6 +51,11 @@ void VulkanVertexBuffer<VertexType>::SetIndexCount(size_t count) {
 template<class VertexType>
 void *VulkanVertexBuffer<VertexType>::GetIndexData() {
     return m_indexData.data();
+}
+
+template<class VertexType>
+size_t VulkanVertexBuffer<VertexType>::GetIndexCount() const {
+    return m_indexData.size();
 }
 
 template<class VertexType>
@@ -94,7 +104,7 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushIndexToDevice() {
         m_indexStagingBuffer.Clear();
         return Graphics::GraphicsError::TRANSFER_FAILED;
     }
-    memcpy(data, m_vertexData.data(), (size_t)bufferSize);
+    memcpy(data, m_indexData.data(), (size_t)bufferSize);
     vkUnmapMemory(m_renderer->GetDevice(), m_indexStagingBuffer.GetVkDeviceMemory());
 
     // Register the transfer to run on the next frame start

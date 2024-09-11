@@ -26,9 +26,19 @@ Graphics::GraphicsError RendererScene_Basic::Finalize() {
     return m_impl->Finalize();
 }
 
+Graphics::GraphicsError RendererScene_Basic::EarlyUpdate(f64 deltaTime) {
+    ASSERT(m_impl);
+    return m_impl->EarlyUpdate(deltaTime);
+}
+
 Graphics::GraphicsError RendererScene_Basic::Update(f64 deltaTime) {
     ASSERT(m_impl);
     return m_impl->Update(deltaTime);
+}
+
+Graphics::GraphicsError RendererScene_Basic::LateUpdate(f64 deltaTime) {
+    ASSERT(m_impl);
+    return m_impl->LateUpdate(deltaTime);
 }
 
 } // namespace Vulkan

@@ -2,6 +2,7 @@
 
 #include "VulkanShaderModule.h"
 #include "VulkanVertexBuffer.h"
+#include "VulkanUniformBufferObject.h"
 
 namespace Graphics {
 class Renderer_Base;
@@ -19,7 +20,9 @@ public:
 
     Graphics::GraphicsError Initialize();
     Graphics::GraphicsError Finalize();
+    Graphics::GraphicsError EarlyUpdate(f64 deltaTime);
     Graphics::GraphicsError Update(f64 deltaTime);
+    Graphics::GraphicsError LateUpdate(f64 deltaTime);
 
 private:
     Graphics::GraphicsError _onDestroySwapChain(int idx);
@@ -40,6 +43,8 @@ private:
     BasicObject m_testRenderObject;
 
 private:
+    static const size_t FRAMES_IN_FLIGHT = 2;
+
     RendererImpl *m_renderer;
 
     typedef std::vector<VkFramebuffer> FrameBufferArray;
@@ -47,7 +52,21 @@ private:
     FrameBufferArray m_swapChainFramebuffers;
 
     //TODO: Move into shader modules
+    typedef std::vector<VkDescriptorSet> DescriptorSetArray;
     VkDescriptorSetLayout m_vertDescriptorSetLayout;
+    VkDescriptorPool m_vertDescriptorPool;
+    DescriptorSetArray m_vertDescriptorSets;
+    VulkanUniformBufferObject m_ubo;
+    size_t m_curFrameIndex;
+    uint32_t m_curSwapChainImageIndex;
+
+    typedef std::vector<VkCommandBuffer> CommandBufferArray;
+    typedef std::vector<VkSemaphore> SemaphoreArray;
+    typedef std::vector<VkFence> FenceArray;
+    CommandBufferArray m_commandBuffers;
+    SemaphoreArray m_swapChainSemaphores;
+    SemaphoreArray m_renderFinishedSemaphores;
+    FenceArray m_renderFinishedFences;
 
     VkPipelineLayout m_pipelineLayout;
     VkPipeline m_pipeline;

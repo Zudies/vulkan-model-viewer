@@ -33,6 +33,9 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
     m_renderer(parentRenderer),
     m_renderPass(VK_NULL_HANDLE),
     m_vertDescriptorSetLayout(VK_NULL_HANDLE),
+    m_vertDescriptorPool(VK_NULL_HANDLE),
+    m_ubo(parentRenderer),
+    m_curFrameIndex(0),
     m_pipelineLayout(VK_NULL_HANDLE),
     m_pipeline(VK_NULL_HANDLE) {
     ASSERT(parentRenderer);
@@ -121,7 +124,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(m_renderer->m_device, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(m_renderer->GetDevice(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
         LOG_ERROR(L"  Failed to create render pass\n");
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
@@ -201,9 +204,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; //TODO: change to counter clockwise once matrices are setup
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
     rasterizer.depthBiasClamp = 0.0f;
@@ -262,7 +263,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(m_renderer->m_device, &layoutInfo, nullptr, &m_vertDescriptorSetLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(m_renderer->GetDevice(), &layoutInfo, nullptr, &m_vertDescriptorSetLayout) != VK_SUCCESS) {
         LOG_ERROR(L"  Failed to create descriptor set layout\n");
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
@@ -274,7 +275,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-    if (vkCreatePipelineLayout(m_renderer->m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(m_renderer->GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
         LOG_ERROR(L"  Failed to create pipeline layout\n");
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
@@ -299,15 +300,102 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
 
-    if (vkCreateGraphicsPipelines(m_renderer->m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(m_renderer->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS) {
         LOG_ERROR(L"  Failed to create graphics pipeline\n");
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 #pragma endregion
-
     LOG_INFO(L"Graphics pipeline successfully created\n");
-    LOG_INFO(L"Creating scene objects\n");
 
+    LOG_INFO(L"Creating descriptor sets\n");
+#pragma region Descriptor sets
+    //TODO: Add proper matrix classes
+    m_ubo.Initialize(sizeof(float) * 16 * 3, FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(m_renderer->GetDevice(), &poolInfo, nullptr, &m_vertDescriptorPool) != VK_SUCCESS) {
+        LOG_ERROR(L"  Failed to create descriptor pool\n");
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+
+    std::vector<VkDescriptorSetLayout> layouts(FRAMES_IN_FLIGHT, m_vertDescriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_vertDescriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    m_vertDescriptorSets.resize(FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(m_renderer->GetDevice(), &allocInfo, m_vertDescriptorSets.data()) != VK_SUCCESS) {
+        LOG_ERROR(L"  Failed to create descriptor sets\n");
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+
+    for (size_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_ubo.GetDeviceBuffer(i);
+        bufferInfo.offset = 0;
+        bufferInfo.range = VK_WHOLE_SIZE;
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_vertDescriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(m_renderer->GetDevice(), 1, &descriptorWrite, 0, nullptr);
+    }
+#pragma endregion
+    LOG_INFO(L"Descriptor sets successfully created\n");
+
+    LOG_INFO(L"Allocating main command buffers\n");
+#pragma region Command buffers
+    m_commandBuffers.resize(FRAMES_IN_FLIGHT);
+    if (m_renderer->AllocateCommandBuffers(RendererImpl::QUEUE_GRAPHICS, VK_COMMAND_BUFFER_LEVEL_PRIMARY, FRAMES_IN_FLIGHT, m_commandBuffers.data()) != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"  Failed to allocate command buffers\n");
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+#pragma endregion
+    LOG_INFO(L"Command buffers successfully allocated\n");
+
+    LOG_INFO(L"Creating sync objects\n");
+#pragma region Sync objects
+    m_swapChainSemaphores.resize(FRAMES_IN_FLIGHT);
+    m_renderFinishedSemaphores.resize(FRAMES_IN_FLIGHT);
+    m_renderFinishedFences.resize(FRAMES_IN_FLIGHT);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (int i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+        if (vkCreateSemaphore(m_renderer->GetDevice(), &semaphoreInfo, VK_NULL_HANDLE, &m_swapChainSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(m_renderer->GetDevice(), &semaphoreInfo, VK_NULL_HANDLE, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(m_renderer->GetDevice(), &fenceInfo, VK_NULL_HANDLE, &m_renderFinishedFences[i]) != VK_SUCCESS) {
+            LOG_ERROR(L"  Failed to create semaphores\n");
+            return Graphics::GraphicsError::INITIALIZATION_FAILED;
+        }
+    }
+
+#pragma endregion
+    LOG_INFO(L"Sync objects successfully created\n");
+
+    LOG_INFO(L"Creating scene objects\n");
 #pragma region Scene objects
     m_testRenderObject.SetVertexCount(4);
     Vertex *vertexData = reinterpret_cast<Vertex*>(m_testRenderObject.GetVertexData());
@@ -324,28 +412,153 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     m_testRenderObject.FlushVertexToDevice();
     m_testRenderObject.FlushIndexToDevice();
 #pragma endregion
-
     LOG_INFO(L"Scene objects successfully created\n");
 
     return Graphics::GraphicsError::OK;
 }
 
 Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
-    vkDestroyPipeline(m_renderer->m_device, m_pipeline, VK_NULL_HANDLE);
-    vkDestroyPipelineLayout(m_renderer->m_device, m_pipelineLayout, VK_NULL_HANDLE);
-    vkDestroyRenderPass(m_renderer->m_device, m_renderPass, VK_NULL_HANDLE);
+    vkDeviceWaitIdle(m_renderer->GetDevice());
+
+    vkFreeCommandBuffers(m_renderer->GetDevice(), m_renderer->m_commandPools[RendererImpl::QUEUE_GRAPHICS], static_cast<uint32_t>(m_commandBuffers.size()), m_commandBuffers.data());
+    for (auto &semaphore : m_swapChainSemaphores) {
+        vkDestroySemaphore(m_renderer->GetDevice(), semaphore, VK_NULL_HANDLE);
+    }
+    for (auto &semaphore : m_renderFinishedSemaphores) {
+        vkDestroySemaphore(m_renderer->GetDevice(), semaphore, VK_NULL_HANDLE);
+    }
+    for (auto &fence : m_renderFinishedFences) {
+        vkDestroyFence(m_renderer->GetDevice(), fence, VK_NULL_HANDLE);
+    }
+
+    vkDestroyPipeline(m_renderer->GetDevice(), m_pipeline, VK_NULL_HANDLE);
+    vkDestroyPipelineLayout(m_renderer->GetDevice(), m_pipelineLayout, VK_NULL_HANDLE);
+    vkDestroyRenderPass(m_renderer->GetDevice(), m_renderPass, VK_NULL_HANDLE);
 
     //TODO: Move to shader module
-    vkDestroyDescriptorSetLayout(m_renderer->m_device, m_vertDescriptorSetLayout, VK_NULL_HANDLE);
+    vkDestroyDescriptorPool(m_renderer->GetDevice(), m_vertDescriptorPool, VK_NULL_HANDLE);
+    vkDestroyDescriptorSetLayout(m_renderer->GetDevice(), m_vertDescriptorSetLayout, VK_NULL_HANDLE);
 
     for (auto framebuffer : m_swapChainFramebuffers) {
-        vkDestroyFramebuffer(m_renderer->m_device, framebuffer, VK_NULL_HANDLE);
+        vkDestroyFramebuffer(m_renderer->GetDevice(), framebuffer, VK_NULL_HANDLE);
+    }
+
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
+    m_curFrameIndex = (m_curFrameIndex + 1) % FRAMES_IN_FLIGHT;
+
+    // Update UBO
+    float temp[16] = {1, 0, 0, 0,
+                      0, 1, 0, 0,
+                      0, 0, 1, 0,
+                      0, 0, 0, 1 };
+    uint8_t *data = reinterpret_cast<uint8_t*>(m_ubo.GetMappedMemory(m_curFrameIndex));
+    for (int i = 0; i < 3; ++i) {
+        memcpy(data + (sizeof(temp) * i), temp, sizeof(temp));
     }
 
     return Graphics::GraphicsError::OK;
 }
 
 Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
+    // Acquire swap chain image
+    // Make sure that the frame we're about to use is not still busy
+    vkWaitForFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex], VK_TRUE, UINT64_MAX);
+
+    auto &swapChain = m_renderer->m_swapchains[0];
+    auto err = m_renderer->AcquireNextSwapChainImage(0, std::numeric_limits<uint64_t>::max(), m_swapChainSemaphores[m_curFrameIndex], VK_NULL_HANDLE, &m_curSwapChainImageIndex);
+    if (err != Graphics::GraphicsError::OK && err != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+        return Graphics::GraphicsError::SWAPCHAIN_INVALID;
+    }
+
+    // Reset command buffer and prepare it for rendering
+    vkResetCommandBuffer(m_commandBuffers[m_curFrameIndex], 0);
+
+    // Draw object
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    if (vkBeginCommandBuffer(m_commandBuffers[m_curFrameIndex], &beginInfo) != VK_SUCCESS) {
+        return Graphics::GraphicsError::QUEUE_ERROR;
+    }
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = m_renderPass;
+    renderPassInfo.framebuffer = m_swapChainFramebuffers[m_curSwapChainImageIndex];
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = swapChain.GetExtents();
+    VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+    vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+
+    VkBuffer vertexBuffers[] = { m_testRenderObject.GetVertexDeviceBuffer()};
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex], 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex], m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_vertDescriptorSets[m_curFrameIndex], 0, nullptr);
+
+    //vkCmdDraw(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetVertexCount()), 1, 0, 0);
+    vkCmdDrawIndexed(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetIndexCount()), 1, 0, 0, 0);
+
+    vkCmdEndRenderPass(m_commandBuffers[m_curFrameIndex]);
+
+    if (vkEndCommandBuffer(m_commandBuffers[m_curFrameIndex]) != VK_SUCCESS) {
+        return Graphics::GraphicsError::QUEUE_ERROR;
+    }
+
+    // Submit the command buffer
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &m_swapChainSemaphores[m_curFrameIndex];
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_commandBuffers[m_curFrameIndex];
+    VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_curFrameIndex] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    vkResetFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex]);
+
+    if (vkQueueSubmit(m_renderer->m_queues[RendererImpl::QUEUE_GRAPHICS], 1, &submitInfo, m_renderFinishedFences[m_curFrameIndex]) != VK_SUCCESS) {
+        return Graphics::GraphicsError::QUEUE_ERROR;
+    }
+
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererSceneImpl_Basic::LateUpdate(f64 deltaTime) {
+    auto &swapChain = m_renderer->m_swapchains[0];
+    VkSwapchainKHR vkSwapChain = swapChain.GetSwapchain();
+
+    // Present the frame
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &m_renderFinishedSemaphores[m_curFrameIndex];
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &vkSwapChain;
+    presentInfo.pImageIndices = &m_curSwapChainImageIndex;
+    presentInfo.pResults = nullptr;
+    auto err = vkQueuePresentKHR(m_renderer->m_queues[RendererImpl::QUEUE_PRESENT], &presentInfo);
+    if (err == VK_ERROR_OUT_OF_DATE_KHR) {
+        return Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE;
+    }
+    else if (err != VK_SUCCESS) {
+        return Graphics::GraphicsError::SWAPCHAIN_INVALID;
+    }
+
     return Graphics::GraphicsError::OK;
 }
 
@@ -354,7 +567,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_onDestroySwapChain(int idx) {
     if (idx == 0) {
         // Destroy all framebuffers
         for (auto framebuffer : m_swapChainFramebuffers) {
-            vkDestroyFramebuffer(m_renderer->m_device, framebuffer, VK_NULL_HANDLE);
+            vkDestroyFramebuffer(m_renderer->GetDevice(), framebuffer, VK_NULL_HANDLE);
         }
         m_swapChainFramebuffers.clear();
     }
@@ -385,7 +598,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_onCreateSwapChain(int idx) {
 Graphics::GraphicsError RendererSceneImpl_Basic::_createRenderPass(VulkanSwapChain &swapChain) {
     // May need to delete previous render pass first
     //if (m_renderPass) {
-    //    vkDestroyRenderPass(m_renderer->m_device, m_renderPass, VK_NULL_HANDLE);
+    //    vkDestroyRenderPass(m_renderer->GetDevice(), m_renderPass, VK_NULL_HANDLE);
     //}
 
     //TODO: Rebuilding render pass means rebuilding the entire pipeline
@@ -406,7 +619,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_createSwapChainFrameBuffers(Vu
         framebufferInfo.height = swapChain.GetExtents().height;
         framebufferInfo.layers = 1;
 
-        if (vkCreateFramebuffer(m_renderer->m_device, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
+        if (vkCreateFramebuffer(m_renderer->GetDevice(), &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
             return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
         }
     }
