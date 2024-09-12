@@ -236,14 +236,24 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
 Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     ASSERT(m_api->m_vkInstance);
+    
+    // Reset active scenes as necessary
+    if (m_curFrameActiveScenes.size() != m_activeScenes.size()) {
+        m_curFrameActiveScenes.insert(m_activeScenes.begin(), m_activeScenes.end());
+    }
 
     // Early update step
-    for (auto *scene : m_activeScenes) {
+    for (Graphics::RendererScene_Base *scene : m_curFrameActiveScenes) {
         auto error = scene->EarlyUpdate(deltaTime);
-        // Swap chain out of date is non-fatal and will be dealt with after this step
-        if (error != Graphics::GraphicsError::OK && error != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+        if (!_handleUpdateError(error, scene)) {
             return error;
         }
+    }
+    if (!m_erroredScenes.empty()) {
+        for (auto *scene : m_erroredScenes) {
+            m_curFrameActiveScenes.erase(scene);
+        }
+        m_erroredScenes.clear();
     }
 
     // Check if any transfer commands need to be submitted
@@ -297,29 +307,31 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     }
 
     // Update all active scenes
-    for (auto *scene : m_activeScenes) {
+    for (Graphics::RendererScene_Base *scene : m_curFrameActiveScenes) {
         auto error = scene->Update(deltaTime);
-        if (error != Graphics::GraphicsError::OK) {
-            // Swap chain out of date is non-fatal so just skip current frame
-            if (error == Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
-                break;
-            }
+        if (!_handleUpdateError(error, scene)) {
             return error;
         }
     }
-
-    //TODO: ? Update all inactive scenes
-    //for (auto *scene : m_inactiveScenes) {
-
-    //}
+    if (!m_erroredScenes.empty()) {
+        for (auto *scene : m_erroredScenes) {
+            m_curFrameActiveScenes.erase(scene);
+        }
+        m_erroredScenes.clear();
+    }
 
     // Late update step
-    for (auto *scene : m_activeScenes) {
+    for (Graphics::RendererScene_Base *scene : m_curFrameActiveScenes) {
         auto error = scene->LateUpdate(deltaTime);
-        // Swap chain out of date is non-fatal and will be dealt with after this step
-        if (error != Graphics::GraphicsError::OK && error != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+        if (!_handleUpdateError(error, scene)) {
             return error;
         }
+    }
+    if (!m_erroredScenes.empty()) {
+        for (auto *scene : m_erroredScenes) {
+            m_curFrameActiveScenes.erase(scene);
+        }
+        m_erroredScenes.clear();
     }
 
     // Check for any swap chain that is out of date
@@ -356,11 +368,13 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
 void RendererImpl::SetSceneActive(Graphics::RendererScene_Base *activeScene) {
     m_inactiveScenes.erase(activeScene);
     m_activeScenes.emplace(activeScene);
+    m_curFrameActiveScenes.emplace(activeScene);
 }
 
 void RendererImpl::SetSceneInactive(Graphics::RendererScene_Base *inactiveScene) {
     m_activeScenes.erase(inactiveScene);
     m_inactiveScenes.emplace(inactiveScene);
+    m_curFrameActiveScenes.erase(inactiveScene);
 }
 
 void RendererImpl::RegisterOnRecreateSwapChainFunc(Graphics::Renderer_Base::OnDestroySwapChainFn destroyFunc, Graphics::Renderer_Base::OnCreateSwapChainFn createFunc) {
@@ -431,15 +445,13 @@ Graphics::GraphicsError RendererImpl::_createSwapChain(Graphics::RendererRequire
 Graphics::GraphicsError RendererImpl::_createSingleSwapChain(Graphics::RendererRequirements *requirements, int idx) {
     ASSERT(idx >= 0);
 
-    LOG_VERBOSE(L"Creating swapchain for surface %d\n", idx);
-
     VulkanSwapChain emptySwapChain;
     emptySwapChain.SetIndex(idx);
     m_swapchains[idx] = emptySwapChain;
 
     Graphics::WindowSurface *curSurface = requirements->GetWindowSurface(idx);
     if (!curSurface) {
-        LOG_ERROR(L"  Invalid surface\n");
+        LOG_ERROR(L"Invalid surface for index %d when creating swap chain\n", idx);
         return Graphics::GraphicsError::SWAPCHAIN_INVALID;
     }
 
@@ -455,20 +467,15 @@ Graphics::GraphicsError RendererImpl::_createSingleSwapChain(Graphics::RendererR
 #error Unsupported platform
 #endif
 
-    // If window is minimized, skip this surface
-    if (width == 0 || height == 0) {
-        return Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE;
-    }
-
     auto supportedSurfaceDescription = m_physicalDevice->GetSupportedSurfaceDescription(idx, requirements);
     if (!supportedSurfaceDescription) {
-        LOG_ERROR(L"  No supported surface\n");
+        LOG_ERROR(L"Surface not supported for index %d when creating swap chain\n", idx);
         return Graphics::GraphicsError::SWAPCHAIN_CREATE_ERROR;
     }
 
     VkSurfaceCapabilitiesKHR capabilities{};
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice->GetDevice(), supportedSurfaceDescription->GetSurface(), &capabilities) != VK_SUCCESS) {
-        LOG_ERROR(L"  Unable to get surface capabilities\n");
+        LOG_ERROR(L"Unable to get surface capabilities for index %d when creating swap chain\n", idx);
         return Graphics::GraphicsError::SWAPCHAIN_INVALID;
     }
 
@@ -482,9 +489,16 @@ Graphics::GraphicsError RendererImpl::_createSingleSwapChain(Graphics::RendererR
     desiredExtent.height = std::clamp(desiredExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     supportedSurfaceDescription->SetExtents(desiredExtent);
 
+    // If window is minimized, skip this surface
+    if (desiredExtent.width == 0 || desiredExtent.height == 0) {
+        return Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE;
+    }
+
+    LOG_VERBOSE(L"Creating swapchain for surface %d\n", idx);
+
     // Create the VkSwapchain
     //TODO: Should this be in requirements json?
-    uint32_t imageCount = capabilities.minImageCount + 1;
+    uint32_t imageCount = std::max(capabilities.minImageCount + 1, 3u);
     if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
         imageCount = capabilities.maxImageCount;
     }
@@ -624,6 +638,24 @@ uint32_t RendererImpl::GetQueueIndex(QueueType type) const {
 
 void RendererImpl::RegisterTransfer(TransferBeginFunc beginFunc, TransferEndFunc endFunc) {
     m_registeredTransfers.emplace_back(std::make_pair(beginFunc, endFunc));
+}
+
+bool RendererImpl::_handleUpdateError(Graphics::GraphicsError error, Graphics::RendererScene_Base *scene) {
+    switch (error) {
+    case Graphics::GraphicsError::OK:
+        break;
+
+    case Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE:
+    case Graphics::GraphicsError::SWAPCHAIN_INVALID:
+        // Remove from active scenes for this frame
+        m_erroredScenes.emplace(scene);
+        break;
+
+    default:
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace Vulkan

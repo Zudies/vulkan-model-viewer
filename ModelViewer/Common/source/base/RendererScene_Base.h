@@ -17,6 +17,9 @@ public:
 
     virtual GraphicsError Initialize(Renderer_Base *parentRenderer) = 0;
     virtual GraphicsError Finalize() = 0;
+
+    // Updates will be called in the order of Early->Update->Late
+    // If any step returns an error, the later steps in that same frame will NOT be called
     virtual GraphicsError EarlyUpdate(f64 deltaTime) = 0;
     virtual GraphicsError Update(f64 deltaTime) = 0;
     virtual GraphicsError LateUpdate(f64 deltaTime) = 0;

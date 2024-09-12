@@ -66,6 +66,10 @@ private:
     void _cleanupSwapChain(int idx = -1);
     void _cleanupSwapChainSingle(int idx);
 
+    // Determines how to handle each type of error when updating a scene
+    // Returns true if the frame should continue rendering, or false if the update should immediately stop
+    bool _handleUpdateError(Graphics::GraphicsError error, Graphics::RendererScene_Base *scene);
+
 private:
     friend class VulkanShaderModule;
     friend class RendererSceneImpl_Basic;
@@ -89,6 +93,8 @@ private:
     typedef std::unordered_set<Graphics::RendererScene_Base*> SceneSet;
     SceneSet m_activeScenes;
     SceneSet m_inactiveScenes;
+    SceneSet m_curFrameActiveScenes;
+    SceneSet m_erroredScenes;
 
     bool m_useValidation;
 

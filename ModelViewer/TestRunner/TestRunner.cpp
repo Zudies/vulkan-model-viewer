@@ -101,7 +101,7 @@ int main()
 
     // Set the target FPS of the test window: 1 / Desired frame rate
     // Set to 0 to unlock frame rate
-    frcSettings.DesiredFrameTime = 1.0 / 60.0;
+    frcSettings.DesiredFrameTime = 0.0;// 1.0 / 60.0;
 
     frameController->Initialize(&frcSettings);
 

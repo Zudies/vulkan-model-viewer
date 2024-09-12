@@ -147,8 +147,8 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 #pragma region Dynamic states
     //TODO: Not using dynamic states for now
     std::vector<VkDynamicState> dynamicStates = {
-        //VK_DYNAMIC_STATE_VIEWPORT,
-        //VK_DYNAMIC_STATE_SCISSOR
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
     };
 
     VkPipelineDynamicStateCreateInfo dynamicState{};
@@ -158,24 +158,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 #pragma endregion
 
 #pragma region Viewports/Scissors
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(swapChain.GetExtents().width);
-    viewport.height = static_cast<float>(swapChain.GetExtents().height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissors{};
-    scissors.extent.width = swapChain.GetExtents().width;
-    scissors.extent.height = swapChain.GetExtents().height;
-
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissors;
 #pragma endregion
 
 #pragma region Vertex input
@@ -293,7 +279,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pDepthStencilState = VK_NULL_HANDLE;
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = VK_NULL_HANDLE;
+    pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = m_pipelineLayout;
     pipelineInfo.renderPass = m_renderPass;
     pipelineInfo.subpass = 0;
@@ -465,11 +451,14 @@ Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
 Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     // Acquire swap chain image
     // Make sure that the frame we're about to use is not still busy
-    vkWaitForFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     auto &swapChain = m_renderer->m_swapchains[0];
     auto err = m_renderer->AcquireNextSwapChainImage(0, std::numeric_limits<uint64_t>::max(), m_swapChainSemaphores[m_curFrameIndex], VK_NULL_HANDLE, &m_curSwapChainImageIndex);
-    if (err != Graphics::GraphicsError::OK && err != Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+    if (err == Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE) {
+        return err;
+    }
+    else if (err != Graphics::GraphicsError::OK) {
         return Graphics::GraphicsError::SWAPCHAIN_INVALID;
     }
 
@@ -498,6 +487,20 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChain.GetExtents().width);
+    viewport.height = static_cast<float>(swapChain.GetExtents().height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(m_commandBuffers[m_curFrameIndex], 0, 1, &viewport);
+
+    VkRect2D scissors{};
+    scissors.extent.width = swapChain.GetExtents().width;
+    scissors.extent.height = swapChain.GetExtents().height;
+    vkCmdSetScissor(m_commandBuffers[m_curFrameIndex], 0, 1, &scissors);
 
     VkBuffer vertexBuffers[] = { m_testRenderObject.GetVertexDeviceBuffer()};
     VkDeviceSize offsets[] = { 0 };
