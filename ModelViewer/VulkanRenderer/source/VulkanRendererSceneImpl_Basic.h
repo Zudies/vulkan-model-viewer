@@ -32,12 +32,16 @@ private:
 
 private:
     struct Vertex {
-        //TODO: Replace with math library
-        f32 position[2];
-        f32 color[3];
+        glm::vec2 position;
+        glm::vec3 color;
 
         static VkVertexInputBindingDescription getBindingDescription();
         static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+    };
+    struct UBO {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
     };
     typedef VulkanVertexBuffer<Vertex> BasicObject;
     BasicObject m_testRenderObject;
@@ -70,6 +74,8 @@ private:
 
     VkPipelineLayout m_pipelineLayout;
     VkPipeline m_pipeline;
+
+    f64 m_accumulatedTime;
 };
 
 } // namespace Vulkan

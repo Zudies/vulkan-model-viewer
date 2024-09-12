@@ -2,6 +2,8 @@
 #include "VulkanRendererSceneImpl_Basic.h"
 #include "VulkanRendererImpl.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+
 namespace Vulkan {
 
 VkVertexInputBindingDescription RendererSceneImpl_Basic::Vertex::getBindingDescription() {
@@ -37,7 +39,8 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
     m_ubo(parentRenderer),
     m_curFrameIndex(0),
     m_pipelineLayout(VK_NULL_HANDLE),
-    m_pipeline(VK_NULL_HANDLE) {
+    m_pipeline(VK_NULL_HANDLE),
+    m_accumulatedTime(0.0) {
     ASSERT(parentRenderer);
 }
 
@@ -190,7 +193,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; //TODO: change to counter clockwise once matrices are setup
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
     rasterizer.depthBiasClamp = 0.0f;
@@ -434,16 +437,20 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
 
 Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
     m_curFrameIndex = (m_curFrameIndex + 1) % FRAMES_IN_FLIGHT;
+    m_accumulatedTime += deltaTime;
+
+    auto &swapChain = m_renderer->m_swapchains[0];
 
     // Update UBO
-    float temp[16] = {1, 0, 0, 0,
-                      0, 1, 0, 0,
-                      0, 0, 1, 0,
-                      0, 0, 0, 1 };
+    UBO ubo;
+    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f))
+                * glm::rotate(glm::mat4(1.0f), static_cast<float>(m_accumulatedTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f))
+                * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
+    ubo.view = glm::lookAt(glm::vec3(0.0f, -1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(90.0f), swapChain.GetExtents().width / static_cast<float>(swapChain.GetExtents().height), 0.1f, 10.0f);
+
     uint8_t *data = reinterpret_cast<uint8_t*>(m_ubo.GetMappedMemory(m_curFrameIndex));
-    for (int i = 0; i < 3; ++i) {
-        memcpy(data + (sizeof(temp) * i), temp, sizeof(temp));
-    }
+    memcpy(data, &ubo, sizeof(UBO));
 
     return Graphics::GraphicsError::OK;
 }
@@ -490,9 +497,9 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
 
     VkViewport viewport{};
     viewport.x = 0.0f;
-    viewport.y = 0.0f;
+    viewport.y = static_cast<float>(swapChain.GetExtents().height);
     viewport.width = static_cast<float>(swapChain.GetExtents().width);
-    viewport.height = static_cast<float>(swapChain.GetExtents().height);
+    viewport.height = -static_cast<float>(swapChain.GetExtents().height); // Negative height to flip y-axis
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(m_commandBuffers[m_curFrameIndex], 0, 1, &viewport);

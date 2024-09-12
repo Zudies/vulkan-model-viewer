@@ -11,6 +11,10 @@
 #define VK_USE_PLATFORM_WIN32_KHR 1
 #endif
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "glm/glm.hpp"
+
 #include "Common.h"
 #include "ErrorCodes.h"
 #include "Version.h"
