@@ -141,8 +141,11 @@ int main()
     }
 
     scene->Finalize();
+    delete scene;
     renderer->Finalize();
+    delete renderer;
     api->Finalize();
+    delete api;
 
     return 0;
 }
