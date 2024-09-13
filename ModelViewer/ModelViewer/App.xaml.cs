@@ -13,5 +13,20 @@ namespace ModelViewer
     /// </summary>
     public partial class App : Application
     {
+        private void Application_Startup(object sender, StartupEventArgs e)
+        {
+            Console.WriteLine("Application_Startup");
+
+            MainWindow wnd = new MainWindow();
+
+            if (e.Args.Length > 0)
+            {
+                //TODO: Command line args
+            }
+
+            // Initialize renderer
+
+            wnd.Show();
+        }
     }
 }

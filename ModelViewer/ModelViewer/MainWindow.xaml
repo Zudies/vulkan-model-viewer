@@ -3,9 +3,30 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:ModelViewer"
+        xmlns:local="clr-namespace:ModelViewer" xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Vulkan Model Viewer" Height="450" Width="800">
+        Title="Vulkan Model Viewer" Height="800" Width="1280">
 
+    <Window.Resources>
+        <LinearGradientBrush x:Key="WindowBackgroundBrush">
+            <GradientStop Offset="0" Color="Silver"/>
+            <GradientStop Offset="1" Color="Gray"/>
+        </LinearGradientBrush>
+    </Window.Resources>
 
+    <Grid ShowGridLines="True">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="7*" />
+            <ColumnDefinition Width="3*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- One canvas that is rendered into from the Renderer and one grid for GUI controls -->
+        <Canvas Name="RenderWindow" Width="auto" Height="auto" Grid.Column="0"/>
+        <Grid Name="ViewerControls" Grid.Column="1">
+            
+        </Grid>
+    </Grid>
 </Window>
