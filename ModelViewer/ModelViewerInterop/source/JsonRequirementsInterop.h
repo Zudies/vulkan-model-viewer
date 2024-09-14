@@ -1,22 +1,27 @@
 #pragma once
 
-#include "WindowSurfaceInterface.h"
+#include "RendererRequirementsInterface.h"
+
+using namespace System::Collections::Generic;
 
 namespace Graphics {
 
 class JsonRendererRequirements;
+class WindowSurface;
 
 } // namespace Graphics
 
-public ref class JsonRequirements {
+public ref class JsonRequirements : public RendererRequirementsInterface {
 public:
     JsonRequirements();
     virtual ~JsonRequirements();
 
-    void Initialize(System::String ^settingsFile);
-    void AddWindowSurface(WindowSurfaceInterface ^window);
+    virtual void Initialize(System::String ^settingsFile);
+    virtual void AddWindowSurface(WindowSurfaceInterface ^window);
+
+    virtual Graphics::RendererRequirements *GetNativeRequirements();
 
 private:
     Graphics::JsonRendererRequirements *m_nativeRequirements;
-    WindowSurfaceInterface ^m_windowSurface;
+    List<WindowSurfaceInterface^> m_surfaces;
 };

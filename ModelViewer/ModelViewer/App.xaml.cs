@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Controls;
 
 namespace ModelViewer
 {
@@ -24,11 +27,37 @@ namespace ModelViewer
                 //TODO: Command line args
             }
 
-            // Initialize renderer
-            JsonRequirements vulkanRequirements = new JsonRequirements();
+            wnd.Show();
+
+            // Load requirements
+            RendererRequirementsInterface vulkanRequirements = new JsonRequirements();
             vulkanRequirements.Initialize("resources/model-viewer-renderer.json");
 
-            wnd.Show();
+            Win32WindowSurface windowSurface = new Win32WindowSurface();
+            HwndSource hwnd = (HwndSource)HwndSource.FromVisual((wnd.FindName("RenderWindow") as Canvas));
+            IntPtr hinstance = Marshal.GetHINSTANCE(typeof(App).Module);
+            windowSurface.SetHWnd(hwnd.Handle);
+            windowSurface.SetHInstance(hinstance);
+            vulkanRequirements.AddWindowSurface(windowSurface);
+
+            // Initialize Vulkan API
+            //TODO:
+            GraphicsApiInterface vulkanApi = new VulkanApi();
+            vulkanApi.Initialize(vulkanRequirements);
+            GraphicsDeviceInterface vulkanDevice = vulkanApi.FindSuitableDevice(vulkanRequirements);
+
+            // Initialize renderer
+            GraphicsRendererInterface vulkanRenderer = new VulkanRenderer();
+            vulkanRenderer.Initialize(vulkanApi, vulkanDevice, vulkanRequirements);
+
+            // Initialize and register the scene
+            //TODO:
+            GraphicsSceneInterface testScene = new VulkanBasicScene();
+            testScene.Initialize(vulkanRenderer);
+            vulkanRenderer.SetSceneActive(testScene);
+
+            //TODO: where to host main loop?
+
         }
     }
 }

@@ -15,4 +15,5 @@ typedef char char8;
 typedef wchar_t char16;
 #pragma endregion
 
+#include "ErrorCodes.h"
 #include <msclr\marshal_cppstd.h>

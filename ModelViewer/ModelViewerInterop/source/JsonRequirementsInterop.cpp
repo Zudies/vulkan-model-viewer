@@ -20,5 +20,10 @@ void JsonRequirements::Initialize(System::String ^settingsFile) {
 }
 
 void JsonRequirements::AddWindowSurface(WindowSurfaceInterface ^window) {
-    m_windowSurface = window;
+    m_surfaces.Add(window); // Need to hold reference because managed surfaces own the native surface allocation
+    m_nativeRequirements->AddWindowSurface(window->GetNativeSurface());
+}
+
+Graphics::RendererRequirements *JsonRequirements::GetNativeRequirements() {
+    return m_nativeRequirements;
 }

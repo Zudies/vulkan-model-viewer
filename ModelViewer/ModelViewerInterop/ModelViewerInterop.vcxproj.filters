@@ -24,6 +24,18 @@
     <ClCompile Include="source\pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\VulkanApiInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanDeviceInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanRendererInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanBasicSceneInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\JsonRequirementsInterop.h">
@@ -36,6 +48,33 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="source\pch.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\RendererRequirementsInterface.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GraphicsApiInterface.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GraphicsDeviceInterface.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GraphicsRendererInterface.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GraphicsSceneInterface.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanApiInterop.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanDeviceInterop.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanRendererInterop.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanBasicSceneInterop.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

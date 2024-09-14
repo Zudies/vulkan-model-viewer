@@ -134,11 +134,24 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\VulkanApiInterop.cpp" />
+    <ClCompile Include="source\VulkanBasicSceneInterop.cpp" />
+    <ClCompile Include="source\VulkanDeviceInterop.cpp" />
+    <ClCompile Include="source\VulkanRendererInterop.cpp" />
     <ClCompile Include="source\Win32WindowSurfaceInterop.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\GraphicsApiInterface.h" />
+    <ClInclude Include="source\GraphicsDeviceInterface.h" />
+    <ClInclude Include="source\GraphicsRendererInterface.h" />
+    <ClInclude Include="source\GraphicsSceneInterface.h" />
     <ClInclude Include="source\JsonRequirementsInterop.h" />
     <ClInclude Include="source\pch.h" />
+    <ClInclude Include="source\RendererRequirementsInterface.h" />
+    <ClInclude Include="source\VulkanApiInterop.h" />
+    <ClInclude Include="source\VulkanBasicSceneInterop.h" />
+    <ClInclude Include="source\VulkanDeviceInterop.h" />
+    <ClInclude Include="source\VulkanRendererInterop.h" />
     <ClInclude Include="source\Win32WindowSurfaceInterop.h" />
     <ClInclude Include="source\WindowSurfaceInterface.h" />
   </ItemGroup>
