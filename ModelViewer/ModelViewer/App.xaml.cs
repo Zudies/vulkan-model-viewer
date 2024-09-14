@@ -25,6 +25,8 @@ namespace ModelViewer
             }
 
             // Initialize renderer
+            JsonRequirements vulkanRequirements = new JsonRequirements();
+            vulkanRequirements.Initialize("resources/model-viewer-renderer.json");
 
             wnd.Show();
         }

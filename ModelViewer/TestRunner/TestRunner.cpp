@@ -74,7 +74,7 @@ int main()
     // Load the renderer requirements for Vulkan
     Graphics::Win32WindowSurface windowSurface(g_hwnd, g_hinstance);
     Graphics::JsonRendererRequirements requirements;
-    requirements.Initialize("model-viewer-renderer.json");
+    requirements.Initialize("resources/model-viewer-renderer.json");
     requirements.AddWindowSurface(&windowSurface);
 
     // Initialize the Vulkan API

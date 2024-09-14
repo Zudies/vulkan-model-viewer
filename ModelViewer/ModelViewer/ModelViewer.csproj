@@ -6,6 +6,17 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <StartupObject>ModelViewer.App</StartupObject>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModelViewerInterop\ModelViewerInterop.vcxproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ContentWithTargetPath Include="$(SolutionDir)$(Platform)\$(Configuration)\resources\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>resources\%(Filename)%(Extension)</TargetPath>
+    </ContentWithTargetPath>
+  </ItemGroup>
 
 </Project>

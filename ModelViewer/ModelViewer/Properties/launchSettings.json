@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ModelViewer": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

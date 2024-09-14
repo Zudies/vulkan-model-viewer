@@ -53,14 +53,14 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
 #pragma region Shader modules
     VulkanShaderModule vertShader(m_renderer);
-    vertShader.CreateFromSpirv("basic-vert.spv");
+    vertShader.CreateFromSpirv("resources/basic-vert.spv");
     if (!vertShader.GetLastError().empty()) {
         LOG_ERROR(L"  Vertex shader creation error: %hs\n", vertShader.GetLastError().c_str());
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
     VulkanShaderModule fragShader(m_renderer);
-    fragShader.CreateFromSpirv("basic-frag.spv");
+    fragShader.CreateFromSpirv("resources/basic-frag.spv");
     if (!fragShader.GetLastError().empty()) {
         LOG_ERROR(L"  Fragment shader creation error: %hs\n", fragShader.GetLastError().c_str());
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
