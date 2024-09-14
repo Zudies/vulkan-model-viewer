@@ -436,10 +436,13 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
 }
 
 Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
+    auto &swapChain = m_renderer->m_swapchains[0];
+    if (!swapChain.IsValid()) {
+        return Graphics::GraphicsError::SWAPCHAIN_OUT_OF_DATE;
+    }
+
     m_curFrameIndex = (m_curFrameIndex + 1) % FRAMES_IN_FLIGHT;
     m_accumulatedTime += deltaTime;
-
-    auto &swapChain = m_renderer->m_swapchains[0];
 
     // Update UBO
     UBO ubo;

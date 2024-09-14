@@ -84,6 +84,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <DisableSpecificWarnings>4945</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(SolutionDir)$(Platform)\$(Configuration)\Common.lib;$(SolutionDir)$(Platform)\$(Configuration)\VulkanRenderer.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -115,6 +116,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <DisableSpecificWarnings>4945</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(SolutionDir)$(Platform)\$(Configuration)\Common.lib;$(SolutionDir)$(Platform)\$(Configuration)\VulkanRenderer.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -129,14 +131,19 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="source\JsonRequirementsInterop.cpp" />
     <ClCompile Include="source\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\RenderWindowHost.cpp" />
     <ClCompile Include="source\VulkanApiInterop.cpp" />
     <ClCompile Include="source\VulkanBasicSceneInterop.cpp" />
     <ClCompile Include="source\VulkanDeviceInterop.cpp" />
+    <ClCompile Include="source\VulkanRenderEngineInterop.cpp" />
     <ClCompile Include="source\VulkanRendererInterop.cpp" />
     <ClCompile Include="source\Win32WindowSurfaceInterop.cpp" />
   </ItemGroup>
@@ -148,9 +155,11 @@
     <ClInclude Include="source\JsonRequirementsInterop.h" />
     <ClInclude Include="source\pch.h" />
     <ClInclude Include="source\RendererRequirementsInterface.h" />
+    <ClInclude Include="source\RenderWindowHost.h" />
     <ClInclude Include="source\VulkanApiInterop.h" />
     <ClInclude Include="source\VulkanBasicSceneInterop.h" />
     <ClInclude Include="source\VulkanDeviceInterop.h" />
+    <ClInclude Include="source\VulkanRenderEngineInterop.h" />
     <ClInclude Include="source\VulkanRendererInterop.h" />
     <ClInclude Include="source\Win32WindowSurfaceInterop.h" />
     <ClInclude Include="source\WindowSurfaceInterface.h" />

@@ -18,6 +18,8 @@ public:
 
     virtual Graphics::Renderer_Base *GetNativeRenderer();
 
+    virtual void Update(float dt);
+
 private:
     Vulkan::Renderer *m_nativeRenderer;
 };

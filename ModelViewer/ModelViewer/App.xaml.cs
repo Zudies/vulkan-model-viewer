@@ -29,35 +29,8 @@ namespace ModelViewer
 
             wnd.Show();
 
-            // Load requirements
-            RendererRequirementsInterface vulkanRequirements = new JsonRequirements();
-            vulkanRequirements.Initialize("resources/model-viewer-renderer.json");
-
-            Win32WindowSurface windowSurface = new Win32WindowSurface();
-            HwndSource hwnd = (HwndSource)HwndSource.FromVisual((wnd.FindName("RenderWindow") as Canvas));
-            IntPtr hinstance = Marshal.GetHINSTANCE(typeof(App).Module);
-            windowSurface.SetHWnd(hwnd.Handle);
-            windowSurface.SetHInstance(hinstance);
-            vulkanRequirements.AddWindowSurface(windowSurface);
-
-            // Initialize Vulkan API
-            //TODO:
-            GraphicsApiInterface vulkanApi = new VulkanApi();
-            vulkanApi.Initialize(vulkanRequirements);
-            GraphicsDeviceInterface vulkanDevice = vulkanApi.FindSuitableDevice(vulkanRequirements);
-
-            // Initialize renderer
-            GraphicsRendererInterface vulkanRenderer = new VulkanRenderer();
-            vulkanRenderer.Initialize(vulkanApi, vulkanDevice, vulkanRequirements);
-
-            // Initialize and register the scene
-            //TODO:
-            GraphicsSceneInterface testScene = new VulkanBasicScene();
-            testScene.Initialize(vulkanRenderer);
-            vulkanRenderer.SetSceneActive(testScene);
-
-            //TODO: where to host main loop?
-
+            //TODO: Does this need to go elsewhere for UI control?
+            wnd.InitializeVulkanEngine();
         }
     }
 }

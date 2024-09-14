@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ModelViewer" xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Vulkan Model Viewer" Height="800" Width="1280">
+        Title="Vulkan Model Viewer" Height="800" Width="1280" Loaded="OnLoaded">
 
     <Window.Resources>
         <LinearGradientBrush x:Key="WindowBackgroundBrush">
@@ -22,11 +22,17 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        
-        <!-- One canvas that is rendered into from the Renderer and one grid for GUI controls -->
-        <Canvas Name="RenderWindow" Width="auto" Height="auto" Grid.Column="0"/>
+
+        <!-- One border that is rendered into from the Renderer and one grid for GUI controls -->
+        <Border Name="RenderWindowParent" Width="auto" Height="auto" Grid.Column="0"/>
         <Grid Name="ViewerControls" Grid.Column="1">
-            
+            <Button Content="Button" HorizontalAlignment="Left" Margin="86,79,0,0" VerticalAlignment="Top" Height="58" Width="72"/>
+            <ComboBox HorizontalAlignment="Left" Margin="145,204,0,0" VerticalAlignment="Top" Width="120" SelectedIndex="0">
+                <ComboBoxItem Content="1"></ComboBoxItem>
+                <ComboBoxItem Content="2"></ComboBoxItem>
+                <ComboBoxItem Content="3"></ComboBoxItem>
+            </ComboBox>
+
         </Grid>
     </Grid>
 </Window>

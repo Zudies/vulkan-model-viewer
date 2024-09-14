@@ -47,7 +47,7 @@ private:
     BasicObject m_testRenderObject;
 
 private:
-    static const size_t FRAMES_IN_FLIGHT = 2;
+    static const size_t FRAMES_IN_FLIGHT = 3;
 
     RendererImpl *m_renderer;
 

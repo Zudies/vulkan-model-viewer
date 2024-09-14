@@ -17,4 +17,6 @@ public:
     void SetSceneActive(GraphicsSceneInterface ^scene);
 
     Graphics::Renderer_Base *GetNativeRenderer();
+
+    void Update(float dt);
 };

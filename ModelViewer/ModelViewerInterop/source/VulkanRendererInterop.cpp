@@ -25,3 +25,7 @@ void VulkanRenderer::SetSceneActive(GraphicsSceneInterface ^scene) {
 Graphics::Renderer_Base *VulkanRenderer::GetNativeRenderer() {
     return m_nativeRenderer;
 }
+
+void VulkanRenderer::Update(float dt) {
+    m_nativeRenderer->Update(dt);
+}
