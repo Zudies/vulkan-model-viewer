@@ -51,14 +51,13 @@ public:
 
     uint32_t GetQueueIndex(QueueType type) const;
 
-    // Allows batch submitting one time transfer queue operations before the next Update step
+    // Allows batch submitting one time queue operations before the next Update step
     // beginFunc is called at the start to record commands
     // endFunc is called after all commands have been run
     // beginCommandBuffer will have already been called on the oneTimeCommandBuffer and endCommandBuffer will be automatically called afterwards
     typedef std::function<void(VkCommandBuffer oneTimeCommandBuffer)> TransferBeginFunc;
     typedef std::function<void()> TransferEndFunc;
-    typedef std::vector<std::pair<TransferBeginFunc, TransferEndFunc>> TransferFunctions;
-    void RegisterTransfer(TransferBeginFunc beginFunc, TransferEndFunc endFunc);
+    void RegisterTransfer(QueueType queue, TransferBeginFunc beginFunc, TransferEndFunc endFunc);
 
 private:
     Graphics::GraphicsError _createSwapChain(Graphics::RendererRequirements *requirements, int idx = -1);
@@ -102,8 +101,10 @@ private:
     StringLiteralArray m_vkExtensionsList;
     StringLiteralArray m_vkLayersList;
 
-    TransferFunctions m_registeredTransfers;
-    VkFence m_transferFence;
+    typedef std::vector<std::pair<TransferBeginFunc, TransferEndFunc>> TransferFunctions;
+    TransferFunctions m_registeredTransfers[QUEUE_COUNT];
+    VkFence m_transferFence[QUEUE_COUNT];
+    VkCommandBuffer m_transferCommandBuffer[QUEUE_COUNT];
 
 };
 

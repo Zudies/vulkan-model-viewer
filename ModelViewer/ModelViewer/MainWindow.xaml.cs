@@ -34,7 +34,7 @@ namespace ModelViewer
 
             HwndHost host = new RenderWindowHost();
             host.Name = "RenderWindow";
-            RegisterName(host.Name, host);
+            RegisterName(host.Name, host); // This register is needed or the control can't be found with FindName
             (FindName("RenderWindowParent") as Border).Child = host;
         }
 
@@ -49,5 +49,10 @@ namespace ModelViewer
         }
 
         private VulkanRenderEngine m_vulkanEngine;
+
+        private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            m_vulkanEngine.Exit();
+        }
     }
 }

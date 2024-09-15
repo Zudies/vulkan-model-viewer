@@ -85,6 +85,8 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="source\VulkanBuffer.h" />
+    <ClInclude Include="source\VulkanImageBuffer.h" />
+    <ClInclude Include="source\Vulkan2DTextureBuffer.h" />
     <ClInclude Include="source\VulkanMultiBuffer.h" />
     <ClInclude Include="source\VulkanRendererScene_Basic.h" />
     <ClInclude Include="source\VulkanRendererSceneImpl_Basic.h" />
@@ -109,6 +111,8 @@
     <ClCompile Include="source\VulkanAPIImpl.cpp" />
     <ClCompile Include="source\VulkanBuffer.cpp" />
     <ClCompile Include="source\VulkanErrorToGraphicsError.cpp" />
+    <ClCompile Include="source\VulkanImageBuffer.cpp" />
+    <ClCompile Include="source\Vulkan2DTextureBuffer.cpp" />
     <ClCompile Include="source\VulkanMultiBuffer.cpp" />
     <ClCompile Include="source\VulkanPhysicalDevice.cpp" />
     <ClCompile Include="source\VulkanRenderer.cpp" />

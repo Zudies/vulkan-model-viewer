@@ -71,6 +71,9 @@
     <ClInclude Include="source\ShaderModule.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\ImageLoader.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -116,6 +119,9 @@
       <Filter>Source Files\source\base</Filter>
     </ClCompile>
     <ClCompile Include="source\ShaderModule.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ImageLoader.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

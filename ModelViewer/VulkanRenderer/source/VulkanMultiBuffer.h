@@ -19,6 +19,7 @@ public:
     size_t GetVkBufferCount() const;
     VkDeviceMemory GetVkDeviceMemory() const;
     void *GetMappedMemory(size_t index) const;
+    void UnmapMemory();
 
     void Clear();
 
@@ -32,7 +33,7 @@ private:
     VkDeviceSize m_sizePerBuffer;
     BufferArray m_vkBuffers;
     VkDeviceMemory m_vkMemory;
-    void *m_mappedMemory;
+    mutable void *m_mappedMemory;
 };
 
 } // namespace Vulkan

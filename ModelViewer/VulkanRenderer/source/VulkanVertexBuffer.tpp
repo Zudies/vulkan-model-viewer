@@ -23,8 +23,12 @@ void VulkanVertexBuffer<VertexType>::SetVertexCount(size_t count) {
     VkDeviceSize bufferSize = sizeof(VertexType) * count;
     m_vertexBuffer.Clear();
 
+#if VK_BUFFERS_USE_TRANSFER_QUEUE
     uint32_t queueFamilies[] = { m_renderer->GetQueueIndex(RendererImpl::QUEUE_GRAPHICS), m_renderer->GetQueueIndex(RendererImpl::QUEUE_TRANSFER) };
     m_vertexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, queueFamilies, queueFamilies[0] == queueFamilies[1] ? 1 : 2);
+#else
+    m_vertexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, nullptr, 0);
+#endif
 }
 
 template<class VertexType>
@@ -44,8 +48,12 @@ void VulkanVertexBuffer<VertexType>::SetIndexCount(size_t count) {
     VkDeviceSize bufferSize = sizeof(uint16_t) * count;
     m_indexBuffer.Clear();
 
+#if VK_BUFFERS_USE_TRANSFER_QUEUE
     uint32_t queueFamilies[] = { m_renderer->GetQueueIndex(RendererImpl::QUEUE_GRAPHICS), m_renderer->GetQueueIndex(RendererImpl::QUEUE_TRANSFER) };
     m_indexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, queueFamilies, queueFamilies[0] == queueFamilies[1] ? 1 : 2);
+#else
+    m_indexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, nullptr, 0);
+#endif
 }
 
 template<class VertexType>
@@ -61,7 +69,10 @@ size_t VulkanVertexBuffer<VertexType>::GetIndexCount() const {
 template<class VertexType>
 Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushVertexToDevice() {
     // Allocate memory for the buffer if necessary
-    m_vertexBuffer.Allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    auto err = m_vertexBuffer.Allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (err != Graphics::GraphicsError::OK) {
+        return err;
+    }
 
     // Allocate a staging buffer
     VkDeviceSize bufferSize = sizeof(VertexType) * m_vertexData.size();
@@ -70,16 +81,21 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushVertexToDevice() {
     m_vertexStagingBuffer.Allocate(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     // Copy the host data to staging buffer
-    void *data;
-    if (vkMapMemory(m_renderer->GetDevice(), m_vertexStagingBuffer.GetVkDeviceMemory(), 0, bufferSize, 0, &data) != VK_SUCCESS) {
+    void *mappedMemory = m_vertexStagingBuffer.GetMappedMemory();
+    if (!mappedMemory) {
         m_vertexStagingBuffer.Clear();
-        return Graphics::GraphicsError::TRANSFER_FAILED;
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
-    memcpy(data, m_vertexData.data(), (size_t)bufferSize);
-    vkUnmapMemory(m_renderer->GetDevice(), m_vertexStagingBuffer.GetVkDeviceMemory());
+    memcpy(mappedMemory, m_vertexData.data(), bufferSize);
+    m_vertexStagingBuffer.UnmapMemory();
 
-    // Register the transfer to run on the next frame start
+    // Register the transfer to run on the next frame update
     m_renderer->RegisterTransfer(
+#if VK_BUFFERS_USE_TRANSFER_QUEUE
+        RendererImpl::QUEUE_TRANSFER,
+#else
+        RendererImpl::QUEUE_GRAPHICS,
+#endif
         std::bind(&VulkanVertexBuffer<VertexType>::_beginTransferCommand, this, bufferSize, &m_vertexStagingBuffer, &m_vertexBuffer, std::placeholders::_1),
         std::bind(&VulkanVertexBuffer<VertexType>::_endTransferCommand, this, &m_vertexStagingBuffer)
     );
@@ -90,7 +106,10 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushVertexToDevice() {
 template<class VertexType>
 Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushIndexToDevice() {
     // Allocate memory for the buffer if necessary
-    m_indexBuffer.Allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    auto err = m_indexBuffer.Allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (err != Graphics::GraphicsError::OK) {
+        return err;
+    }
 
     // Allocate a staging buffer
     VkDeviceSize bufferSize = sizeof(uint16_t) * m_indexData.size();
@@ -99,16 +118,21 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushIndexToDevice() {
     m_indexStagingBuffer.Allocate(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     // Copy the host data to staging buffer
-    void *data;
-    if (vkMapMemory(m_renderer->GetDevice(), m_indexStagingBuffer.GetVkDeviceMemory(), 0, bufferSize, 0, &data) != VK_SUCCESS) {
+    void *mappedMemory = m_indexStagingBuffer.GetMappedMemory();
+    if (!mappedMemory) {
         m_indexStagingBuffer.Clear();
-        return Graphics::GraphicsError::TRANSFER_FAILED;
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
-    memcpy(data, m_indexData.data(), (size_t)bufferSize);
-    vkUnmapMemory(m_renderer->GetDevice(), m_indexStagingBuffer.GetVkDeviceMemory());
+    memcpy(mappedMemory, m_indexData.data(), bufferSize);
+    m_indexStagingBuffer.UnmapMemory();
 
-    // Register the transfer to run on the next frame start
+    // Register the transfer to run on the next frame update
     m_renderer->RegisterTransfer(
+#if VK_BUFFERS_USE_TRANSFER_QUEUE
+        RendererImpl::QUEUE_TRANSFER,
+#else
+        RendererImpl::QUEUE_GRAPHICS,
+#endif
         std::bind(&VulkanVertexBuffer<VertexType>::_beginTransferCommand, this, bufferSize, &m_indexStagingBuffer, &m_indexBuffer, std::placeholders::_1),
         std::bind(&VulkanVertexBuffer<VertexType>::_endTransferCommand, this, &m_indexStagingBuffer)
     );
@@ -148,6 +172,12 @@ VkBuffer VulkanVertexBuffer<VertexType>::GetVertexDeviceBuffer() {
 template<class VertexType>
 VkBuffer VulkanVertexBuffer<VertexType>::GetIndexDeviceBuffer() {
     return m_indexBuffer.GetVkBuffer();
+}
+
+template<class VertexType>
+void VulkanVertexBuffer<VertexType>::ClearHostResources() {
+    m_vertexData.clear();
+    m_indexData.clear();
 }
 
 } // namespace Vulkan

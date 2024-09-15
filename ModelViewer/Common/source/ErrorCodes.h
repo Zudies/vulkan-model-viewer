@@ -18,6 +18,7 @@ enum class GraphicsError {
     // Out of device memory (gpu)
     OUT_OF_DEVICE_MEMORY,
 
+    // Error encountered when initializing
     INITIALIZATION_FAILED,
 
     // The requested layer(s) is not supported
@@ -44,6 +45,9 @@ enum class GraphicsError {
     // Failed to allocate command buffers
     COMMAND_BUFFER_CREATE_ERROR,
 
+    // Failed to create an image
+    IMAGE_CREATE_ERROR,
+
     // Memory pool could not be found
     NO_SUPPORTED_MEMORY,
 
@@ -52,6 +56,12 @@ enum class GraphicsError {
 
     // A device memory transfer failed
     TRANSFER_FAILED,
+
+    // Failed to load a file
+    FILE_LOAD_ERROR,
+
+    // An internal format was not supported
+    UNSUPPORTED_FORMAT,
 
 };
 

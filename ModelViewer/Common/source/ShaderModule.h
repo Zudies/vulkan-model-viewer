@@ -14,15 +14,15 @@ public:
 
     std::string const &GetLastError() const;
 
-    void CreateFromGlsl(std::string const &shaderFile);
-    void CreateFromHlsl(std::string const &shaderFile);
-    void CreateFromSpirv(std::string const &shaderFile);
+    bool CreateFromGlsl(std::string const &shaderFile);
+    bool CreateFromHlsl(std::string const &shaderFile);
+    bool CreateFromSpirv(std::string const &shaderFile);
 
     const uint8_t *GetData() const;
     size_t GetDataSize() const;
 
 private:
-    void _readFileToData(std::string const &filepath);
+    bool _readFileToData(std::string const &filepath);
 
 private:
     DataArray m_data;

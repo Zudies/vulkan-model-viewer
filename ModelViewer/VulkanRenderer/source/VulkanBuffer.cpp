@@ -7,7 +7,8 @@ namespace Vulkan {
 VulkanBuffer::VulkanBuffer(RendererImpl *renderer)
   : m_renderer(renderer),
     m_vkBuffer(VK_NULL_HANDLE),
-    m_vkMemory(VK_NULL_HANDLE) {
+    m_vkMemory(VK_NULL_HANDLE),
+    m_mappedMemory(nullptr) {
     ASSERT(renderer);
 }
 
@@ -58,6 +59,25 @@ Graphics::GraphicsError VulkanBuffer::Allocate(VkMemoryPropertyFlags properties)
     return Graphics::GraphicsError::OK;
 }
 
+void *VulkanBuffer::GetMappedMemory() const {
+    if (!m_mappedMemory) {
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(m_renderer->GetDevice(), m_vkBuffer, &memRequirements);
+        if (vkMapMemory(m_renderer->GetDevice(), m_vkMemory, 0, memRequirements.size, 0, &m_mappedMemory) != VK_SUCCESS) {
+            return nullptr;
+        }
+    }
+
+    return m_mappedMemory;
+}
+
+void VulkanBuffer::UnmapMemory() {
+    if (m_mappedMemory) {
+        vkUnmapMemory(m_renderer->GetDevice(), m_vkMemory);
+        m_mappedMemory = nullptr;
+    }
+}
+
 VkBuffer VulkanBuffer::GetVkBuffer() const {
     return m_vkBuffer;
 }
@@ -67,6 +87,8 @@ VkDeviceMemory VulkanBuffer::GetVkDeviceMemory() const {
 }
 
 void VulkanBuffer::Clear() {
+    UnmapMemory();
+
     if (m_vkMemory) {
         vkFreeMemory(m_renderer->GetDevice(), m_vkMemory, VK_NULL_HANDLE);
         m_vkMemory = VK_NULL_HANDLE;

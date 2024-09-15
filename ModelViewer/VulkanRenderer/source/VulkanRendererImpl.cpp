@@ -22,7 +22,8 @@ RendererImpl::RendererImpl()
     m_commandPools{},
     m_swapChainOutOfDate(0),
     m_useValidation(false),
-    m_transferFence(VK_NULL_HANDLE) {
+    m_transferFence{},
+    m_transferCommandBuffer{} {
 }
 
 RendererImpl::~RendererImpl() {
@@ -201,7 +202,9 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     // Create transfer sync objects
     VkFenceCreateInfo transferFenceInfo{};
     transferFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    vkCreateFence(m_device, &transferFenceInfo, nullptr, &m_transferFence);
+    for (int i = 0; i < QUEUE_COUNT; ++i) {
+        vkCreateFence(m_device, &transferFenceInfo, nullptr, &m_transferFence[i]);
+    }
 
     return Graphics::GraphicsError::OK;
 }
@@ -211,7 +214,9 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
     vkDeviceWaitIdle(m_device);
 
-    vkDestroyFence(m_device, m_transferFence, VK_NULL_HANDLE);
+    for (int i = 0; i < QUEUE_COUNT; ++i) {
+        vkDestroyFence(m_device, m_transferFence[i], VK_NULL_HANDLE);
+    }
 
     for (int i = 0; i < QUEUE_COUNT; ++i) {
         if (m_commandPools[i]) {
@@ -257,53 +262,56 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     }
 
     // Check if any transfer commands need to be submitted
-    VkCommandBuffer transferCommandBuffer = VK_NULL_HANDLE;
-    if (!m_registeredTransfers.empty()) {
-        auto err = AllocateCommandBuffers(QUEUE_TRANSFER, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, &transferCommandBuffer);
-        if (err != Graphics::GraphicsError::OK) {
-            return err;
-        }
+    for (int i = 0; i < QUEUE_COUNT; ++i) {
+        if (!m_registeredTransfers[i].empty()) {
+            auto err = AllocateCommandBuffers(static_cast<QueueType>(i), VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, &m_transferCommandBuffer[i]);
+            if (err != Graphics::GraphicsError::OK) {
+                return err;
+            }
 
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        if (vkBeginCommandBuffer(transferCommandBuffer, &beginInfo) != VK_SUCCESS) {
-            vkFreeCommandBuffers(m_device, m_commandPools[QUEUE_TRANSFER], 1, &transferCommandBuffer);
-            return Graphics::GraphicsError::COMMAND_BUFFER_CREATE_ERROR;
-        }
+            VkCommandBufferBeginInfo beginInfo{};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            if (vkBeginCommandBuffer(m_transferCommandBuffer[i], &beginInfo) != VK_SUCCESS) {
+                vkFreeCommandBuffers(m_device, m_commandPools[QUEUE_TRANSFER], 1, &m_transferCommandBuffer[i]);
+                return Graphics::GraphicsError::COMMAND_BUFFER_CREATE_ERROR;
+            }
 
-        for (auto &transferFunc : m_registeredTransfers) {
-            transferFunc.first(transferCommandBuffer);
-        }
+            for (auto &transferFunc : m_registeredTransfers[i]) {
+                transferFunc.first(m_transferCommandBuffer[i]);
+            }
 
-        // Submit the command buffer and setup fences
-        vkEndCommandBuffer(transferCommandBuffer);
+            // Submit the command buffer and setup fences
+            vkEndCommandBuffer(m_transferCommandBuffer[i]);
 
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &transferCommandBuffer;
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &m_transferCommandBuffer[i];
 
-        vkResetFences(m_device, 1, &m_transferFence);
-        auto vkErr = vkQueueSubmit(m_queues[QUEUE_TRANSFER], 1, &submitInfo, m_transferFence);
-        if (vkErr == VK_ERROR_DEVICE_LOST) {
-            //TODO: Need to recreate device
-            return Graphics::GraphicsError::DEVICE_LOST;
-        }
-        else if (vkErr != VK_SUCCESS) {
-            return Graphics::GraphicsError::QUEUE_ERROR;
+            vkResetFences(m_device, 1, &m_transferFence[i]);
+            auto vkErr = vkQueueSubmit(m_queues[i], 1, &submitInfo, m_transferFence[i]);
+            if (vkErr == VK_ERROR_DEVICE_LOST) {
+                //TODO: Need to recreate device
+                return Graphics::GraphicsError::DEVICE_LOST;
+            }
+            else if (vkErr != VK_SUCCESS) {
+                return Graphics::GraphicsError::QUEUE_ERROR;
+            }
         }
     }
 
     // If there were transfer operations, wait for them to finish
-    if (!m_registeredTransfers.empty()) {
-        vkWaitForFences(m_device, 1, &m_transferFence, VK_TRUE, UINT64_MAX);
-        vkFreeCommandBuffers(m_device, m_commandPools[QUEUE_TRANSFER], 1, &transferCommandBuffer);
+    for (int i = 0; i < QUEUE_COUNT; ++i) {
+        if (!m_registeredTransfers[i].empty()) {
+            vkWaitForFences(m_device, 1, &m_transferFence[i], VK_TRUE, UINT64_MAX);
+            vkFreeCommandBuffers(m_device, m_commandPools[i], 1, &m_transferCommandBuffer[i]);
 
-        for (auto &transferFunc : m_registeredTransfers) {
-            transferFunc.second();
+            for (auto &transferFunc : m_registeredTransfers[i]) {
+                transferFunc.second();
+            }
+            m_registeredTransfers[i].clear();
         }
-        m_registeredTransfers.clear();
     }
 
     // Update all active scenes
@@ -636,8 +644,8 @@ uint32_t RendererImpl::GetQueueIndex(QueueType type) const {
     return m_queueIndices[type];
 }
 
-void RendererImpl::RegisterTransfer(TransferBeginFunc beginFunc, TransferEndFunc endFunc) {
-    m_registeredTransfers.emplace_back(std::make_pair(beginFunc, endFunc));
+void RendererImpl::RegisterTransfer(QueueType queue, TransferBeginFunc beginFunc, TransferEndFunc endFunc) {
+    m_registeredTransfers[queue].emplace_back(std::make_pair(beginFunc, endFunc));
 }
 
 bool RendererImpl::_handleUpdateError(Graphics::GraphicsError error, Graphics::RendererScene_Base *scene) {

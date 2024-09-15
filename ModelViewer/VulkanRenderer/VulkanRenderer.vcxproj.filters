@@ -66,6 +66,12 @@
       <Filter>Source Files\source</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="source\Vulkan2DTextureBuffer.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanImageBuffer.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -108,6 +114,12 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanMultiBuffer.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Vulkan2DTextureBuffer.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanImageBuffer.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

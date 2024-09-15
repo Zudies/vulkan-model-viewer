@@ -68,10 +68,6 @@ Graphics::GraphicsError VulkanMultiBuffer::Allocate(VkMemoryPropertyFlags proper
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
-    if (vkMapMemory(m_renderer->GetDevice(), m_vkMemory, 0, allocInfo.allocationSize, 0, &m_mappedMemory) != VK_SUCCESS) {
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-
     // Bind each buffer
     for (size_t i = 0; i < m_vkBuffers.size(); ++i) {
         if (vkBindBufferMemory(m_renderer->GetDevice(), m_vkBuffers[i], m_vkMemory, _calculateOffset(i)) != VK_SUCCESS) {
@@ -95,10 +91,25 @@ VkDeviceMemory VulkanMultiBuffer::GetVkDeviceMemory() const {
 }
 
 void *VulkanMultiBuffer::GetMappedMemory(size_t index) const {
+    if (!m_mappedMemory) {
+        if (vkMapMemory(m_renderer->GetDevice(), m_vkMemory, 0, m_sizePerBuffer * m_vkBuffers.size(), 0, &m_mappedMemory) != VK_SUCCESS) {
+            return nullptr;
+        }
+    }
+
     return reinterpret_cast<uint8_t*>(m_mappedMemory) + _calculateOffset(index);
 }
 
+void VulkanMultiBuffer::UnmapMemory() {
+    if (m_mappedMemory) {
+        vkUnmapMemory(m_renderer->GetDevice(), m_vkMemory);
+        m_mappedMemory = nullptr;
+    }
+}
+
 void VulkanMultiBuffer::Clear() {
+    UnmapMemory();
+
     if (m_vkMemory) {
         vkFreeMemory(m_renderer->GetDevice(), m_vkMemory, VK_NULL_HANDLE);
         m_vkMemory = VK_NULL_HANDLE;

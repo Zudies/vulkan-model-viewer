@@ -30,6 +30,9 @@ public:
     VkBuffer GetVertexDeviceBuffer();
     VkBuffer GetIndexDeviceBuffer();
 
+    // Frees host memory usage once no more device flushes are needed
+    void ClearHostResources();
+
 private:
     void _beginTransferCommand(VkDeviceSize size, VulkanBuffer *srcBuffer, VulkanBuffer *dstBuffer, VkCommandBuffer commandBuffer);
     void _endTransferCommand(VulkanBuffer *stagingBuffer);

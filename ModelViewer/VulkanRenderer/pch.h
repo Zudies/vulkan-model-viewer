@@ -7,6 +7,9 @@
 #ifndef PCH_H
 #define PCH_H
 
+// Set to have staging buffers transfer exclusively with the transfer queue
+#define VK_BUFFERS_USE_TRANSFER_QUEUE 0
+
 #if defined(_WIN32)
 #define VK_USE_PLATFORM_WIN32_KHR 1
 #endif

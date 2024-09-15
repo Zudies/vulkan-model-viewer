@@ -92,6 +92,7 @@
     <ClInclude Include="source\base\WindowSurface.h" />
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\ErrorCodes.h" />
+    <ClInclude Include="source\ImageLoader.h" />
     <ClInclude Include="source\JsonRendererRequirements.h" />
     <ClInclude Include="source\JsonRendererRequirementsImpl.h" />
     <ClInclude Include="source\ShaderModule.h" />
@@ -114,6 +115,7 @@
     <ClCompile Include="source\base\Renderer_Base.cpp" />
     <ClCompile Include="source\base\WindowSurface.cpp" />
     <ClCompile Include="source\Common.cpp" />
+    <ClCompile Include="source\ImageLoader.cpp" />
     <ClCompile Include="source\JsonRendererRequirements.cpp" />
     <ClCompile Include="source\JsonRendererRequirementsImpl.cpp" />
     <ClCompile Include="source\ShaderModule.cpp" />
