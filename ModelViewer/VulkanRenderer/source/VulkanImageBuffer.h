@@ -4,6 +4,8 @@
 
 namespace Vulkan {
 
+class RendererImpl;
+
 class VulkanImageBuffer {
 public:
 

@@ -90,6 +90,7 @@
     <ClInclude Include="source\VulkanMultiBuffer.h" />
     <ClInclude Include="source\VulkanRendererScene_Basic.h" />
     <ClInclude Include="source\VulkanRendererSceneImpl_Basic.h" />
+    <ClInclude Include="source\VulkanSampler.h" />
     <ClInclude Include="source\VulkanShaderModule.h" />
     <ClInclude Include="source\VulkanSwapChain.h" />
     <ClInclude Include="source\VulkanAPI.h" />
@@ -119,6 +120,7 @@
     <ClCompile Include="source\VulkanRendererImpl.cpp" />
     <ClCompile Include="source\VulkanRendererScene_Basic.cpp" />
     <ClCompile Include="source\VulkanRendererSceneImpl_Basic.cpp" />
+    <ClCompile Include="source\VulkanSampler.cpp" />
     <ClCompile Include="source\VulkanShaderModule.cpp" />
     <ClCompile Include="source\VulkanSwapChain.cpp" />
     <ClCompile Include="source\VulkanUniformBufferObject.cpp" />
@@ -172,6 +174,14 @@
       <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</TreatOutputAsContent>
       <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="resource\texture.jpg">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\resources\;%(DestinationFolders)</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\resources\;%(DestinationFolders)</DestinationFolders>
+    </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

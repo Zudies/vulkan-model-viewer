@@ -16,8 +16,8 @@ VkVertexInputBindingDescription RendererSceneImpl_Basic::Vertex::getBindingDescr
     return bindingDescription;
 }
 
-std::array<VkVertexInputAttributeDescription, 2> RendererSceneImpl_Basic::Vertex::getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+std::array<VkVertexInputAttributeDescription, 3> RendererSceneImpl_Basic::Vertex::getAttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
     attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -27,17 +27,25 @@ std::array<VkVertexInputAttributeDescription, 2> RendererSceneImpl_Basic::Vertex
     attributeDescriptions[1].location = 1;
     attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+    attributeDescriptions[2].binding = 0;
+    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
     return attributeDescriptions;
 }
 
 RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
   : m_testRenderObject(parentRenderer),
+    m_testTexture(parentRenderer),
+    m_testSampler(parentRenderer),
     m_renderer(parentRenderer),
     m_renderPass(VK_NULL_HANDLE),
     m_vertDescriptorSetLayout(VK_NULL_HANDLE),
     m_vertDescriptorPool(VK_NULL_HANDLE),
     m_ubo(parentRenderer),
     m_curFrameIndex(0),
+    m_curSwapChainImageIndex(0),
     m_pipelineLayout(VK_NULL_HANDLE),
     m_pipeline(VK_NULL_HANDLE),
     m_accumulatedTime(0.0) {
@@ -240,17 +248,27 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
 #pragma region Pipeline layout
     //TODO: Move this into shader modules
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr;
+    VkDescriptorSetLayoutBinding layoutBindings[] = { {}, {} };
+
+    // UBO
+    layoutBindings[0].binding = 0;
+    layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBindings[0].descriptorCount = 1;
+    layoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutBindings[0].pImmutableSamplers = nullptr;
+
+    // Fragment shader sampler
+    layoutBindings[1].binding = 1;
+    layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutBindings[1].descriptorCount = 1;
+    layoutBindings[1].pImmutableSamplers = nullptr;
+    layoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &uboLayoutBinding;
+    layoutInfo.bindingCount = countof(layoutBindings);
+    layoutInfo.pBindings = layoutBindings;
 
     if (vkCreateDescriptorSetLayout(m_renderer->GetDevice(), &layoutInfo, nullptr, &m_vertDescriptorSetLayout) != VK_SUCCESS) {
         LOG_ERROR(L"  Failed to create descriptor set layout\n");
@@ -298,17 +316,18 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
     LOG_INFO(L"Creating descriptor sets\n");
 #pragma region Descriptor sets
-    //TODO: Add proper matrix classes
-    m_ubo.Initialize(sizeof(float) * 16 * 3, FRAMES_IN_FLIGHT);
+    m_ubo.Initialize(sizeof(UBO), FRAMES_IN_FLIGHT);
 
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
+    VkDescriptorPoolSize poolSize[] = { {}, {} };
+    poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize[0].descriptorCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
+    poolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize[1].descriptorCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.poolSizeCount = countof(poolSize);
+    poolInfo.pPoolSizes = poolSize;
     poolInfo.maxSets = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
 
     if (vkCreateDescriptorPool(m_renderer->GetDevice(), &poolInfo, nullptr, &m_vertDescriptorPool) != VK_SUCCESS) {
@@ -329,22 +348,41 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
+    //TODO: Move object initialization elsewhere
+    m_testTexture.LoadImageFromFile("resources/texture.jpg");
+    m_testTexture.FlushTextureToDevice();
+    m_testTexture.ClearHostResources();
+    m_testSampler.Initialize();
+
     for (size_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_ubo.GetDeviceBuffer(i);
         bufferInfo.offset = 0;
         bufferInfo.range = VK_WHOLE_SIZE;
 
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = m_vertDescriptorSets[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = m_testTexture.GetDeviceImageView();
+        imageInfo.sampler = m_testSampler.GetVkSampler();
 
-        vkUpdateDescriptorSets(m_renderer->GetDevice(), 1, &descriptorWrite, 0, nullptr);
+        VkWriteDescriptorSet descriptorWrite[] = { {}, {} };
+        descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite[0].dstSet = m_vertDescriptorSets[i];
+        descriptorWrite[0].dstBinding = 0;
+        descriptorWrite[0].dstArrayElement = 0;
+        descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite[0].descriptorCount = 1;
+        descriptorWrite[0].pBufferInfo = &bufferInfo;
+
+        descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite[1].dstSet = m_vertDescriptorSets[i];
+        descriptorWrite[1].dstBinding = 1;
+        descriptorWrite[1].dstArrayElement = 0;
+        descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrite[1].descriptorCount = 1;
+        descriptorWrite[1].pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(m_renderer->GetDevice(), countof(descriptorWrite), descriptorWrite, 0, nullptr);
     }
 #pragma endregion
     LOG_INFO(L"Descriptor sets successfully created\n");
@@ -391,10 +429,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     m_testRenderObject.SetIndexCount(6);
     uint16_t *indexData = reinterpret_cast<uint16_t*>(m_testRenderObject.GetIndexData());
 
-    vertexData[0] = { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f} };
-    vertexData[1] = { {0.5f, -0.5f}, { 0.0f, 1.0f, 0.0f } };
-    vertexData[2] = { {0.5f, 0.5f}, {0.0f, 0.0f, 1.0f} };
-    vertexData[3] = { {-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f} };
+    vertexData[0] = { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} };
+    vertexData[1] = { {0.5f, -0.5f}, { 0.0f, 1.0f, 0.0f }, {0.0f, 0.0f} };
+    vertexData[2] = { {0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} };
+    vertexData[3] = { {-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} };
     indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
     indexData[3] = 2; indexData[4] = 3; indexData[5] = 0;
 

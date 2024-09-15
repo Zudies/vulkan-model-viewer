@@ -9,11 +9,15 @@ namespace Vulkan {
 Vulkan2DTextureBuffer::Vulkan2DTextureBuffer(RendererImpl *renderer)
   : m_renderer(renderer),
     m_imageBuffer(renderer),
-    m_stagingBuffer(renderer) {
+    m_stagingBuffer(renderer),
+    m_imageView(VK_NULL_HANDLE) {
     ASSERT(renderer);
 }
 
 Vulkan2DTextureBuffer::~Vulkan2DTextureBuffer() {
+    if (m_imageView) {
+        vkDestroyImageView(m_renderer->GetDevice(), m_imageView, VK_NULL_HANDLE);
+    }
 }
 
 Graphics::GraphicsError Vulkan2DTextureBuffer::LoadImageFromFile(std::string const &filePath) {
@@ -38,17 +42,15 @@ VkImage Vulkan2DTextureBuffer::GetDeviceImage() {
     return m_imageBuffer.GetVkImage();
 }
 
+VkImageView Vulkan2DTextureBuffer::GetDeviceImageView() {
+    return m_imageView;
+}
+
 void Vulkan2DTextureBuffer::SetMipLevels(uint32_t mipLevels) {
     m_imageBuffer.SetMipLevels(mipLevels);
 }
 
 Graphics::GraphicsError Vulkan2DTextureBuffer::FlushTextureToDevice() {
-    // Allocate memory for the image if necessary
-    auto err = m_imageBuffer.Allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (err != Graphics::GraphicsError::OK) {
-        return err;
-    }
-
     // Register the transfer to run on the next frame update
     m_renderer->RegisterTransfer(
 #if VK_BUFFERS_USE_TRANSFER_QUEUE
@@ -98,6 +100,25 @@ Graphics::GraphicsError Vulkan2DTextureBuffer::_createVkImage(Graphics::ImageLoa
     auto err = m_imageBuffer.Initialize(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, queueFamilies, queueFamilyCount);
     if (err != Graphics::GraphicsError::OK) {
         return err;
+    }
+
+    err = m_imageBuffer.Allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (err != Graphics::GraphicsError::OK) {
+        return err;
+    }
+
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = m_imageBuffer.GetVkImage();
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = m_imageBuffer.GetFormat();
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0; //TODO:
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+    if (vkCreateImageView(m_renderer->GetDevice(), &viewInfo, nullptr, &m_imageView) != VK_SUCCESS) {
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
     // Create and copy into staging buffer

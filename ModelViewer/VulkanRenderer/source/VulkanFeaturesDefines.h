@@ -33,6 +33,9 @@ static char const *FEATURE_SUPPORTS_GRAPHICS_OPERATIONS = "GRAPHICS_OPERATIONS";
 static char const *FEATURE_SURFACE_WINDOW_PRESENT = "SURFACE_WINDOW_PRESENT";
 static char const *FEATURE_SUPPORTS_TRANSFER_OPERATIONS = "TRANSFER_OPERATIONS";
 
+// Optional features
+static char const *FEATURE_SAMPLER_ANISOTROPY = "SAMPLER_ANISOTROPY";
+
 // List of validation layers that will be enabled if validation is enabled
 static char const *VALIDATION_LAYERS[] = {
     "VK_LAYER_KHRONOS_validation"

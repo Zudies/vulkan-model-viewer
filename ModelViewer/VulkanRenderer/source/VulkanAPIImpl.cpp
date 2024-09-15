@@ -308,6 +308,8 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
             }
             else if (feature == FEATURE_SUPPORTS_TRANSFER_OPERATIONS) {
             }
+            else if (feature == FEATURE_SAMPLER_ANISOTROPY) {
+            }
             else {
                 ERROR_MSG(L"Unknown feature name: %hs", feature.c_str());
             }

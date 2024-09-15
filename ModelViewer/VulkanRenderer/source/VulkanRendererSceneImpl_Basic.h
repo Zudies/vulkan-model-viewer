@@ -3,6 +3,8 @@
 #include "VulkanShaderModule.h"
 #include "VulkanVertexBuffer.h"
 #include "VulkanUniformBufferObject.h"
+#include "Vulkan2DTextureBuffer.h"
+#include "VulkanSampler.h"
 
 namespace Graphics {
 class Renderer_Base;
@@ -34,9 +36,10 @@ private:
     struct Vertex {
         glm::vec2 position;
         glm::vec3 color;
+        glm::vec2 texCoord;
 
         static VkVertexInputBindingDescription getBindingDescription();
-        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
     };
     struct UBO {
         glm::mat4 model;
@@ -45,6 +48,8 @@ private:
     };
     typedef VulkanVertexBuffer<Vertex> BasicObject;
     BasicObject m_testRenderObject;
+    Vulkan2DTextureBuffer m_testTexture;
+    VulkanSampler m_testSampler;
 
 private:
     static const size_t FRAMES_IN_FLIGHT = 3;

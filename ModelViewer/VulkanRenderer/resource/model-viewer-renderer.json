@@ -1,7 +1,7 @@
 {
     "useValidation": true,
     "requiredFeatures": [ "DISCRETE_GPU", "GRAPHICS_OPERATIONS", "SURFACE_WINDOW_PRESENT", "TRANSFER_OPERATIONS" ],
-    "optionalFeatures": [],
+    "optionalFeatures": [ "SAMPLER_ANISOTROPY" ],
     "surfaces": [
         {
             "index": 0,

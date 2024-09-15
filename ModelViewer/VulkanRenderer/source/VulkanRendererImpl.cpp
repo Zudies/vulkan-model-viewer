@@ -112,6 +112,13 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
             queueIndices[QueueType::QUEUE_TRANSFER] = *queueIndex;
             uniqueQueues.emplace(*queueIndex);
         }
+        else if (it == FEATURE_SAMPLER_ANISOTROPY) {
+            if (!m_physicalDevice->SupportsFeature(FEATURE_SAMPLER_ANISOTROPY, m_requirements)) {
+                LOG_ERROR("Sampler anisotropy required but not supported\n");
+                return Graphics::GraphicsError::NO_SUPPORTED_DEVICE;
+            }
+            deviceFeatures.samplerAnisotropy = true;
+        }
         else {
             ERROR_MSG(L"Unknown feature name: %hs", it.c_str());
         }
@@ -638,6 +645,14 @@ Graphics::GraphicsError RendererImpl::GetMemoryTypeIndex(uint32_t typeFilter, ui
 
 VkDevice RendererImpl::GetDevice() const {
     return m_device;
+}
+
+VulkanPhysicalDevice *RendererImpl::GetPhysicalDevice() const {
+    return m_physicalDevice;
+}
+
+Graphics::RendererRequirements *RendererImpl::GetRequirements() const {
+    return m_requirements;
 }
 
 uint32_t RendererImpl::GetQueueIndex(QueueType type) const {

@@ -11,6 +11,8 @@ class ImageLoader;
 
 namespace Vulkan {
 
+class RendererImpl;
+
 class Vulkan2DTextureBuffer {
 public:
 
@@ -23,6 +25,7 @@ public:
     Graphics::GraphicsError LoadImageFromMemory(void *data, size_t dataSize);
 
     VkImage GetDeviceImage();
+    VkImageView GetDeviceImageView();
 
     void SetMipLevels(uint32_t mipLevels);
 
@@ -39,6 +42,7 @@ private:
     RendererImpl *m_renderer;
     VulkanImageBuffer m_imageBuffer;
     VulkanBuffer m_stagingBuffer;
+    VkImageView m_imageView;
 
 };
 

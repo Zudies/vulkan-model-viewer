@@ -63,6 +63,10 @@ bool VulkanPhysicalDevice::SupportsFeature(char const *featureName, Graphics::Re
         return true;
     }
 
+    if (strcmp(featureName, FEATURE_SAMPLER_ANISOTROPY) == 0) {
+        return m_vkFeatures.samplerAnisotropy;
+    }
+
     // Unknown feature
     ERROR_MSG(L"Unknown feature name: %hs", featureName);
     return false;
@@ -259,6 +263,10 @@ std::optional<VulkanSwapChain> VulkanPhysicalDevice::GetSupportedSurfaceDescript
     } while (true);
 
     return ret;
+}
+
+const VkPhysicalDeviceLimits &VulkanPhysicalDevice::GetDeviceLimits() const {
+    return m_vkProperties.limits;
 }
 
 } // namespace Vulkan

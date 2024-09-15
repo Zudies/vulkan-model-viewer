@@ -72,6 +72,9 @@
     <ClInclude Include="source\VulkanImageBuffer.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanSampler.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -122,12 +125,18 @@
     <ClCompile Include="source\VulkanImageBuffer.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
+    <ClCompile Include="source\VulkanSampler.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Library Include="$(VULKAN_SDK)\Lib\vulkan-1.lib" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="resource\model-viewer-renderer.json">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="resource\texture.jpg">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
   </ItemGroup>

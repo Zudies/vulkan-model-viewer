@@ -36,6 +36,8 @@ public:
 
     std::optional<VulkanSwapChain> GetSupportedSurfaceDescription(int surfaceIndex, Graphics::RendererRequirements *requirements) const;
 
+    const VkPhysicalDeviceLimits &GetDeviceLimits() const;
+
 private:
     APIImpl *m_api;
     VkPhysicalDevice m_device;

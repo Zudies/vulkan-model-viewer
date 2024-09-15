@@ -48,6 +48,8 @@ public:
     Graphics::GraphicsError GetMemoryTypeIndex(uint32_t typeFilter, uint32_t typeFlags, uint32_t poolFlags, uint32_t *out);
 
     VkDevice GetDevice() const;
+    VulkanPhysicalDevice *GetPhysicalDevice() const;
+    Graphics::RendererRequirements *GetRequirements() const;
 
     uint32_t GetQueueIndex(QueueType type) const;
 
