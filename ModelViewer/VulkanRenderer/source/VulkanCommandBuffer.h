@@ -1,5 +1,7 @@
 #pragma once
 
+#include "BitFlag.h"
+
 namespace Vulkan {
 
 class RendererImpl;
@@ -59,7 +61,7 @@ private:
     std::vector<VkPipelineStageFlags> *m_waitSemaphoreStages;
     std::vector<VkSemaphore> *m_signalSemaphores;
 
-    uint32_t m_flags;
+    Graphics::BitFlag<uint32_t> m_flags;
     uint32_t m_queue;
 
 };

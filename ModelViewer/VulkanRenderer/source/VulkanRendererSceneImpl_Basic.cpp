@@ -192,7 +192,6 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 #pragma endregion
 
 #pragma region Dynamic states
-    //TODO: Not using dynamic states for now
     std::vector<VkDynamicState> dynamicStates = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR

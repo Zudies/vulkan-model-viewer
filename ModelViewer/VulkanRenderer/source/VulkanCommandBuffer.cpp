@@ -18,13 +18,12 @@ VulkanCommandBuffer::VulkanCommandBuffer(RendererImpl *renderer)
     m_waitSemaphores(nullptr),
     m_waitSemaphoreStages(nullptr),
     m_signalSemaphores(nullptr),
-    m_flags(0),
     m_queue(static_cast<uint32_t>(-1)) {
 }
 
 VulkanCommandBuffer::~VulkanCommandBuffer() {
     Clear();
-    if ((m_flags & COMMAND_BUFFER_OWNS_FENCE) && m_fence) {
+    if (m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) && m_fence) {
         vkDestroyFence(m_renderer->GetDevice(), m_fence, VK_NULL_HANDLE);
     }
 
@@ -43,7 +42,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer &&other)
     m_flags(other.m_flags),
     m_queue(other.m_queue) {
 
-    other.m_flags = 0;
+    other.m_flags = Graphics::BitFlag<uint32_t>();
     other.m_waitSemaphores = nullptr;
     other.m_waitSemaphoreStages = nullptr;
     other.m_signalSemaphores = nullptr;
@@ -59,7 +58,7 @@ VulkanCommandBuffer &VulkanCommandBuffer::operator=(VulkanCommandBuffer &&other)
     m_flags = other.m_flags;
     m_queue = other.m_queue;
 
-    other.m_flags = 0;
+    other.m_flags = Graphics::BitFlag<uint32_t>();
     other.m_waitSemaphores = nullptr;
     other.m_waitSemaphoreStages = nullptr;
     other.m_signalSemaphores = nullptr;
@@ -68,46 +67,36 @@ VulkanCommandBuffer &VulkanCommandBuffer::operator=(VulkanCommandBuffer &&other)
 }
 
 void VulkanCommandBuffer::SetSingleUse(bool singleUse) {
-    if (singleUse) {
-        m_flags |= COMMAND_BUFFER_IS_SINGLE_USE;
-    }
-    else {
-        m_flags &= ~COMMAND_BUFFER_IS_SINGLE_USE;
-    }
+    m_flags.SetFlag(COMMAND_BUFFER_IS_SINGLE_USE, singleUse);
 }
 
 void VulkanCommandBuffer::SetLevel(VkCommandBufferLevel level) {
-    if (level & VK_COMMAND_BUFFER_LEVEL_SECONDARY) {
-        m_flags |= COMMAND_BUFFER_IS_SECONDARY_BUFFER;
-    }
-    else {
-        m_flags &= ~COMMAND_BUFFER_IS_SECONDARY_BUFFER;
-    }
+    m_flags.SetFlag(COMMAND_BUFFER_IS_SECONDARY_BUFFER, level & VK_COMMAND_BUFFER_LEVEL_SECONDARY);
 }
 
 void VulkanCommandBuffer::SetWaitFence(bool useFence, VkFence fence) {
     if (useFence) {
         if (fence) {
             // Clear own fence if needed
-            if ((m_flags & COMMAND_BUFFER_OWNS_FENCE) && m_fence) {
+            if (m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) && m_fence) {
                 vkDestroyFence(m_renderer->GetDevice(), m_fence, VK_NULL_HANDLE);
             }
-            m_flags &= ~COMMAND_BUFFER_OWNS_FENCE;
+            m_flags.ClearFlag(COMMAND_BUFFER_OWNS_FENCE);
             m_fence = fence;
         }
         else {
             // Create fence if we don't already own one
-            if (!(m_flags & COMMAND_BUFFER_OWNS_FENCE) || !m_fence) {
-                m_flags |= COMMAND_BUFFER_OWNS_FENCE;
+            if (!m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) || !m_fence) {
+                m_flags.SetFlag(COMMAND_BUFFER_OWNS_FENCE);
                 m_fence = VK_NULL_HANDLE; // Fence creation will happen in Initialize()
             }
         }
     }
     else {
-        if ((m_flags & COMMAND_BUFFER_OWNS_FENCE) && m_fence) {
+        if (m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) && m_fence) {
             vkDestroyFence(m_renderer->GetDevice(), m_fence, VK_NULL_HANDLE);
         }
-        m_flags &= ~COMMAND_BUFFER_OWNS_FENCE;
+        m_flags.ClearFlag(COMMAND_BUFFER_OWNS_FENCE);
         m_fence = VK_NULL_HANDLE;
     }
 }
@@ -120,24 +109,24 @@ Graphics::GraphicsError VulkanCommandBuffer::Initialize(uint32_t queue, VkComman
     // Determine if we need to allocate a command buffer
     if (vkCommandBuffer) {
         m_commandBuffer = vkCommandBuffer;
-        m_flags &= ~COMMAND_BUFFER_OWNS_COMMAND_BUFFER;
+        m_flags.ClearFlag(COMMAND_BUFFER_OWNS_COMMAND_BUFFER);
     }
     else {
         auto err = m_renderer->AllocateCommandBuffers(
             static_cast<RendererImpl::QueueType>(m_queue),
-            (m_flags & COMMAND_BUFFER_IS_SECONDARY_BUFFER) ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            m_flags.GetFlag(COMMAND_BUFFER_IS_SECONDARY_BUFFER) ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             1,
             &m_commandBuffer
         );
         if (err != Graphics::GraphicsError::OK) {
-            m_flags &= ~COMMAND_BUFFER_OWNS_COMMAND_BUFFER;
+            m_flags.ClearFlag(COMMAND_BUFFER_OWNS_COMMAND_BUFFER);
             return err;
         }
-        m_flags |= COMMAND_BUFFER_OWNS_COMMAND_BUFFER;
+        m_flags.SetFlag(COMMAND_BUFFER_OWNS_COMMAND_BUFFER);
     }
 
     // Determine if we need to allocate a fence
-    if ((m_flags & COMMAND_BUFFER_OWNS_FENCE) && !m_fence) {
+    if (m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) && !m_fence) {
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         if (vkCreateFence(m_renderer->GetDevice(), &fenceInfo, VK_NULL_HANDLE, &m_fence) != VK_SUCCESS) {
@@ -150,9 +139,10 @@ Graphics::GraphicsError VulkanCommandBuffer::Initialize(uint32_t queue, VkComman
 }
 
 void VulkanCommandBuffer::Clear() {
-    if (m_flags & COMMAND_BUFFER_OWNS_COMMAND_BUFFER) {
+    if (m_flags.GetFlag(COMMAND_BUFFER_OWNS_COMMAND_BUFFER)) {
         vkFreeCommandBuffers(m_renderer->GetDevice(), m_renderer->m_commandPools[m_queue], 1, &m_commandBuffer);
     }
+    m_flags.ClearFlag(COMMAND_BUFFER_OWNS_COMMAND_BUFFER);
     m_commandBuffer = VK_NULL_HANDLE;
     m_queue = static_cast<uint32_t>(-1);
 
@@ -220,7 +210,7 @@ Graphics::GraphicsError VulkanCommandBuffer::BeginCommandBuffer(VkCommandBufferU
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = flags;
-    if (m_flags & COMMAND_BUFFER_IS_SINGLE_USE) {
+    if (m_flags.GetFlag(COMMAND_BUFFER_IS_SINGLE_USE)) {
         beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     }
 

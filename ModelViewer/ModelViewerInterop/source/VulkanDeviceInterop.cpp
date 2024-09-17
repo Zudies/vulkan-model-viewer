@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "VulkanDeviceInterop.h"
+#include "base/PhysicalDevice.h"
 
 VulkanDevice::VulkanDevice()
   : m_nativeDevice(nullptr) {

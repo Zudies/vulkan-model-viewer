@@ -35,17 +35,20 @@ namespace ModelViewer
             HwndHost host = new RenderWindowHost();
             host.Name = "RenderWindow";
             RegisterName(host.Name, host); // This register is needed or the control can't be found with FindName
-            (FindName("RenderWindowParent") as Border).Child = host;
+            ((Border)FindName("RenderWindowParent")).Child = host;
         }
 
         public void InitializeVulkanEngine()
         {
             IntPtr hinstance = Marshal.GetHINSTANCE(typeof(App).Module);
-            RenderWindowHost renderWindow = FindName("RenderWindow") as RenderWindowHost;
+            RenderWindowHost? renderWindow = FindName("RenderWindow") as RenderWindowHost;
             // Note: This still refers to the parent hwnd rather than the window created in HwndHost
             //HwndSource hwnd = (HwndSource)HwndSource.FromVisual(renderWindow);
 
-            m_vulkanEngine.Initialize(hinstance, renderWindow.GetHwnd().Handle);
+            if (renderWindow != null)
+            {
+                m_vulkanEngine.Initialize(hinstance, renderWindow.GetHwnd().Handle);
+            }
         }
 
         private VulkanRenderEngine m_vulkanEngine;

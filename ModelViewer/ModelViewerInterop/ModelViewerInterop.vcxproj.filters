@@ -39,6 +39,9 @@
     <ClCompile Include="source\RenderWindowHost.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\VulkanRenderEngineInterop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\JsonRequirementsInterop.h">
@@ -82,6 +85,9 @@
     </ClInclude>
     <ClInclude Include="source\RenderWindowHost.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanRenderEngineInterop.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

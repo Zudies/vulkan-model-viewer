@@ -53,6 +53,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)source;$(ProjectDir);$(ProjectDir)ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -90,6 +91,7 @@
     <ClInclude Include="source\base\RendererScene_Base.h" />
     <ClInclude Include="source\base\Renderer_Base.h" />
     <ClInclude Include="source\base\WindowSurface.h" />
+    <ClInclude Include="source\BitFlag.h" />
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\ErrorCodes.h" />
     <ClInclude Include="source\ImageLoader.h" />
@@ -122,6 +124,9 @@
     <ClCompile Include="source\Win32WindowSurface.cpp" />
     <ClCompile Include="source\WindowsFrameRateController.cpp" />
     <ClCompile Include="source\WindowsFrameRateControllerImpl.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\BitFlag.tpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

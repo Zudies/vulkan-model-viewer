@@ -74,6 +74,9 @@
     <ClInclude Include="source\ImageLoader.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\BitFlag.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -124,5 +127,10 @@
     <ClCompile Include="source\ImageLoader.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\BitFlag.tpp">
+      <Filter>Source Files\source</Filter>
+    </None>
   </ItemGroup>
 </Project>
