@@ -12,7 +12,9 @@ class ImageLoader;
 namespace Vulkan {
 
 class RendererImpl;
+class VulkanCommandBuffer;
 
+// Once a texture is uploaded to the device it is immutable and the same instance of this class cannot be used to re-upload
 class Vulkan2DTextureBuffer {
 public:
 
@@ -24,8 +26,8 @@ public:
     Graphics::GraphicsError LoadImageFromFile(std::string const &filePath);
     Graphics::GraphicsError LoadImageFromMemory(void *data, size_t dataSize);
 
-    VkImage GetDeviceImage();
-    VkImageView GetDeviceImageView();
+    VkImage GetDeviceImage() const;
+    VkImageView GetDeviceImageView() const;
 
     void SetMipLevels(uint32_t mipLevels);
 
@@ -34,8 +36,13 @@ public:
 
 private:
     Graphics::GraphicsError _createVkImage(Graphics::ImageLoader *loader);
-    void _beginTransferCommand(VkExtent3D extents, VulkanBuffer *srcBuffer, VulkanImageBuffer *dstBuffer, VkCommandBuffer commandBuffer);
-    void _endTransferCommand(VulkanBuffer *stagingBuffer);
+
+    Graphics::GraphicsError _beginTransferQueueCommand(VkExtent3D extents, VulkanBuffer *srcBuffer, VulkanImageBuffer *dstBuffer, VulkanCommandBuffer *commandBuffer);
+    Graphics::GraphicsError _endTransferQueueCommand(VulkanBuffer *stagingBuffer, VulkanCommandBuffer *commandBuffer);
+    void _errorTransferQueueCommand(VulkanBuffer *stagingBuffer);
+    Graphics::GraphicsError _beginGraphicsQueueCommand(VulkanImageBuffer *dstBuffer, VulkanCommandBuffer *commandBuffer);
+    Graphics::GraphicsError _endGraphicsQueueCommand(VulkanCommandBuffer *commandBuffer);
+    void _errorGraphicsQueueCommand();
 
 private:
 
@@ -43,6 +50,7 @@ private:
     VulkanImageBuffer m_imageBuffer;
     VulkanBuffer m_stagingBuffer;
     VkImageView m_imageView;
+    VkSemaphore m_transferSemaphore;
 
 };
 

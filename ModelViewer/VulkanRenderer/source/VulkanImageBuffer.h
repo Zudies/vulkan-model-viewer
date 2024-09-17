@@ -18,6 +18,10 @@ public:
     void SetFormat(VkFormat format);
     VkFormat GetFormat() const;
 
+    // Sets the first supported format based on the current tiling mode
+    // Returns false if no format was set
+    bool SetFormatBestCandidate(const VkFormat *formats, size_t formatCount, VkImageUsageFlags usage);
+
     // Required
     void SetExtents(uint32_t width, uint32_t height, uint32_t depth);
     VkExtent3D GetExtents() const;
@@ -52,6 +56,8 @@ public:
     VkDeviceMemory GetVkDeviceMemory() const;
 
     void Clear();
+
+    bool IsFormatSupported(VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
 
 private:
 

@@ -18,14 +18,20 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
     UNUSED_PARAM(pUserData);
 
+    // For the sake of pretty printing, "Loader Message" messages do not get a header
     char const *severity = "Unknown";
     switch (messageSeverity) {
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-        LOG_VERBOSE("!! Vulkan Validation: %s  Type: %x  Name: %s !!\n\t\t%s\n",
-            "Verbose",
-            messageType,
-            pCallbackData->pMessageIdName,
-            pCallbackData->pMessage);
+        if (strcmp(pCallbackData->pMessageIdName, "Loader Message")) {
+            LOG_VERBOSE("!! Vulkan Validation: %s  Type: %x  Name: %s !!\n\t\t%s\n",
+                "Verbose",
+                messageType,
+                pCallbackData->pMessageIdName,
+                pCallbackData->pMessage);
+        }
+        else {
+            LOG_VERBOSE("%s\n", pCallbackData->pMessage);
+        }
         break;
 
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
@@ -37,6 +43,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         break;
 
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+        if (strcmp(pCallbackData->pMessageIdName, "Loader Message") == 0) {
+            LOG_INFO("%s\n", pCallbackData->pMessage);
+            break;
+        }
         [[fallthrough]];
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
         if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
@@ -90,7 +100,17 @@ Graphics::GraphicsError APIImpl::Initialize(Graphics::RendererRequirements *requ
     m_vkAppInfo.applicationVersion = VK_MAKE_API_VERSION(0, MV_VERSION_MAJOR, MV_VERSION_MINOR, MV_VERSION_PATCH);
     m_vkAppInfo.pEngineName = "Super amazing engine";
     m_vkAppInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
-    m_vkAppInfo.apiVersion = _queryInstanceVersion();
+
+    // Requires 1.3 for synchronization2
+    m_vkAppInfo.apiVersion = VK_API_VERSION_1_3;
+
+    uint32_t maxSupportedVersion = _queryInstanceVersion();
+    LOG_INFO("Supported Vulkan version %u.%u.%u.%u\n",
+        VK_API_VERSION_VARIANT(maxSupportedVersion),
+        VK_API_VERSION_MAJOR(maxSupportedVersion),
+        VK_API_VERSION_MINOR(maxSupportedVersion),
+        VK_API_VERSION_PATCH(maxSupportedVersion)
+        );
 
     // Determine features that can be supported
     auto internalResult = _populateFeatureList(requirements);
@@ -292,6 +312,7 @@ Graphics::GraphicsError APIImpl::_populateFeatureList(Graphics::RendererRequirem
     auto processFeaturesFunc = [&](std::vector<std::string> &featuresList,
                                    auto &extensionsOut,
                                    auto &layersOut) {
+        (void)layersOut;
         for (auto &feature : featuresList) {
             if (feature == FEATURE_IS_DISCRETE_GPU) {
                 // Nothing to do

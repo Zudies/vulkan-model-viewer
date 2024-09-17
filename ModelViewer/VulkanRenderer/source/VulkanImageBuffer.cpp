@@ -34,6 +34,16 @@ VkFormat VulkanImageBuffer::GetFormat() const {
     return m_imageProperties.format;
 }
 
+bool VulkanImageBuffer::SetFormatBestCandidate(const VkFormat *formats, size_t formatCount, VkImageUsageFlags usage) {
+    for (int i = 0; i < formatCount; ++i) {
+        if (IsFormatSupported(formats[i], m_imageProperties.tiling, usage)) {
+            SetFormat(formats[i]);
+            return true;
+        }
+    }
+    return false;
+}
+
 void VulkanImageBuffer::SetExtents(uint32_t width, uint32_t height, uint32_t depth) {
     m_imageProperties.extent.width = width;
     m_imageProperties.extent.height = height;
@@ -91,6 +101,11 @@ void VulkanImageBuffer::SetInitialLayout(VkImageLayout initialLayout) {
 Graphics::GraphicsError VulkanImageBuffer::Initialize(VkImageUsageFlags usage, uint32_t *queueFamilies, uint32_t queueFamilyCount) {
     ASSERT(!m_vkImage);
 
+    // Check that the requested format is supported
+    if (!IsFormatSupported(m_imageProperties.format, m_imageProperties.tiling, usage)) {
+        return Graphics::GraphicsError::UNSUPPORTED_FORMAT;
+    }
+
     m_imageProperties.usage = usage;
     m_imageProperties.sharingMode = queueFamilyCount > 1 ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
     m_imageProperties.queueFamilyIndexCount = queueFamilyCount;
@@ -146,6 +161,43 @@ void VulkanImageBuffer::Clear() {
         vkDestroyImage(m_renderer->GetDevice(), m_vkImage, VK_NULL_HANDLE);
         m_vkImage = VK_NULL_HANDLE;
     }
+}
+
+bool VulkanImageBuffer::IsFormatSupported(VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage) {
+    VkFormatProperties properties;
+    vkGetPhysicalDeviceFormatProperties(m_renderer->GetPhysicalDevice()->GetDevice(), format, &properties);
+
+    VkFormatFeatureFlags supportedFeatures;
+
+    switch (tiling) {
+    case VK_IMAGE_TILING_LINEAR:
+        supportedFeatures = properties.linearTilingFeatures;
+        break;
+    case VK_IMAGE_TILING_OPTIMAL:
+        supportedFeatures = properties.optimalTilingFeatures;
+        break;
+    default:
+        return false;
+    }
+
+    // Convert image usage to feature flags
+    static const std::pair<VkImageUsageFlags, VkFormatFeatureFlags> FEATURE_FLAG_MAPPING[] = {
+        { VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_FORMAT_FEATURE_TRANSFER_SRC_BIT },
+        { VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_FORMAT_FEATURE_TRANSFER_DST_BIT },
+        { VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT },
+        { VK_IMAGE_USAGE_STORAGE_BIT, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT },
+        { VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT },
+        { VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT },
+    };
+
+    VkFormatFeatureFlags featureFlags = 0;
+    for (auto &featureMapping : FEATURE_FLAG_MAPPING) {
+        if (usage & featureMapping.first) {
+            featureFlags |= featureMapping.second;
+        }
+    }
+
+    return (supportedFeatures & featureFlags) == featureFlags;
 }
 
 

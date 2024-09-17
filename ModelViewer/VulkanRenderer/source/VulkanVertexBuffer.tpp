@@ -1,4 +1,5 @@
 #include "VulkanVertexBuffer.h"
+#include "VulkanCommandBuffer.h"
 
 namespace Vulkan {
 
@@ -23,12 +24,7 @@ void VulkanVertexBuffer<VertexType>::SetVertexCount(size_t count) {
     VkDeviceSize bufferSize = sizeof(VertexType) * count;
     m_vertexBuffer.Clear();
 
-#if VK_BUFFERS_USE_TRANSFER_QUEUE
-    uint32_t queueFamilies[] = { m_renderer->GetQueueIndex(RendererImpl::QUEUE_GRAPHICS), m_renderer->GetQueueIndex(RendererImpl::QUEUE_TRANSFER) };
-    m_vertexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, queueFamilies, queueFamilies[0] == queueFamilies[1] ? 1 : 2);
-#else
     m_vertexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, nullptr, 0);
-#endif
 }
 
 template<class VertexType>
@@ -48,12 +44,7 @@ void VulkanVertexBuffer<VertexType>::SetIndexCount(size_t count) {
     VkDeviceSize bufferSize = sizeof(uint16_t) * count;
     m_indexBuffer.Clear();
 
-#if VK_BUFFERS_USE_TRANSFER_QUEUE
-    uint32_t queueFamilies[] = { m_renderer->GetQueueIndex(RendererImpl::QUEUE_GRAPHICS), m_renderer->GetQueueIndex(RendererImpl::QUEUE_TRANSFER) };
-    m_indexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, queueFamilies, queueFamilies[0] == queueFamilies[1] ? 1 : 2);
-#else
     m_indexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, nullptr, 0);
-#endif
 }
 
 template<class VertexType>
@@ -87,17 +78,17 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushVertexToDevice() {
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
     memcpy(mappedMemory, m_vertexData.data(), bufferSize);
+
+    //TODO: If this needs to update frequently, don't unmap
     m_vertexStagingBuffer.UnmapMemory();
 
     // Register the transfer to run on the next frame update
     m_renderer->RegisterTransfer(
-#if VK_BUFFERS_USE_TRANSFER_QUEUE
-        RendererImpl::QUEUE_TRANSFER,
-#else
         RendererImpl::QUEUE_GRAPHICS,
-#endif
+        1,
         std::bind(&VulkanVertexBuffer<VertexType>::_beginTransferCommand, this, bufferSize, &m_vertexStagingBuffer, &m_vertexBuffer, std::placeholders::_1),
-        std::bind(&VulkanVertexBuffer<VertexType>::_endTransferCommand, this, &m_vertexStagingBuffer)
+        std::bind(&VulkanVertexBuffer<VertexType>::_endTransferCommand, this, &m_vertexStagingBuffer, std::placeholders::_1),
+        std::bind(&VulkanVertexBuffer<VertexType>::_errorTransferCommand, this, &m_vertexStagingBuffer)
     );
     
     return Graphics::GraphicsError::OK;
@@ -128,29 +119,59 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushIndexToDevice() {
 
     // Register the transfer to run on the next frame update
     m_renderer->RegisterTransfer(
-#if VK_BUFFERS_USE_TRANSFER_QUEUE
-        RendererImpl::QUEUE_TRANSFER,
-#else
         RendererImpl::QUEUE_GRAPHICS,
-#endif
+        1,
         std::bind(&VulkanVertexBuffer<VertexType>::_beginTransferCommand, this, bufferSize, &m_indexStagingBuffer, &m_indexBuffer, std::placeholders::_1),
-        std::bind(&VulkanVertexBuffer<VertexType>::_endTransferCommand, this, &m_indexStagingBuffer)
+        std::bind(&VulkanVertexBuffer<VertexType>::_endTransferCommand, this, &m_indexStagingBuffer, std::placeholders::_1),
+        std::bind(&VulkanVertexBuffer<VertexType>::_errorTransferCommand, this, &m_indexStagingBuffer)
     );
     
     return Graphics::GraphicsError::OK;
 }
 
 template<class VertexType>
-void VulkanVertexBuffer<VertexType>::_beginTransferCommand(VkDeviceSize size, VulkanBuffer *srcBuffer, VulkanBuffer *dstBuffer, VkCommandBuffer commandBuffer) {
+Graphics::GraphicsError VulkanVertexBuffer<VertexType>::_beginTransferCommand(VkDeviceSize size, VulkanBuffer *srcBuffer, VulkanBuffer *dstBuffer, VulkanCommandBuffer *commandBuffer) {
+    auto err = commandBuffer->BeginCommandBuffer();
+    if (err != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"Failed to copy vertex buffer to device\n");
+        srcBuffer->Clear();
+        return err;
+    }
+
     VkBufferCopy copyRegion{};
     copyRegion.srcOffset = 0;
     copyRegion.dstOffset = 0;
     copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer->GetVkBuffer(), dstBuffer->GetVkBuffer(), 1, &copyRegion);
+    vkCmdCopyBuffer(commandBuffer->GetVkCommandBuffer(), srcBuffer->GetVkBuffer(), dstBuffer->GetVkBuffer(), 1, &copyRegion);
+
+    err = commandBuffer->EndCommandBuffer();
+    if (err != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"Failed to copy vertex buffer to device\n");
+        srcBuffer->Clear();
+        return err;
+    }
+
+    err = commandBuffer->Submit();
+    if (err != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"Failed to copy vertex buffer to device\n");
+        srcBuffer->Clear();
+        return err;
+    }
+
+    return Graphics::GraphicsError::OK;
 }
 
 template<class VertexType>
-void VulkanVertexBuffer<VertexType>::_endTransferCommand(VulkanBuffer *stagingBuffer) {
+Graphics::GraphicsError VulkanVertexBuffer<VertexType>::_endTransferCommand(VulkanBuffer *stagingBuffer, VulkanCommandBuffer *commandBuffer) {
+    VkFence fence = commandBuffer->GetWaitFence();
+    vkWaitForFences(m_renderer->GetDevice(), 1, &fence, true, std::numeric_limits<uint64_t>::max());
+    stagingBuffer->Clear();
+    return Graphics::GraphicsError::OK;
+}
+
+template<class VertexType>
+void VulkanVertexBuffer<VertexType>::_errorTransferCommand(VulkanBuffer *stagingBuffer) {
+    LOG_ERROR(L"Failed to copy vertex buffer to device\n");
     stagingBuffer->Clear();
 }
 

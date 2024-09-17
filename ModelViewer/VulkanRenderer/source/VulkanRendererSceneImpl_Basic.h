@@ -5,6 +5,7 @@
 #include "VulkanUniformBufferObject.h"
 #include "Vulkan2DTextureBuffer.h"
 #include "VulkanSampler.h"
+#include "VulkanDepthStencilBuffer.h"
 
 namespace Graphics {
 class Renderer_Base;
@@ -34,7 +35,7 @@ private:
 
 private:
     struct Vertex {
-        glm::vec2 position;
+        glm::vec3 position;
         glm::vec3 color;
         glm::vec2 texCoord;
 
@@ -59,6 +60,7 @@ private:
     typedef std::vector<VkFramebuffer> FrameBufferArray;
     VkRenderPass m_renderPass;
     FrameBufferArray m_swapChainFramebuffers;
+    VulkanDepthStencilBuffer m_depthBuffer;
 
     //TODO: Move into shader modules
     typedef std::vector<VkDescriptorSet> DescriptorSetArray;

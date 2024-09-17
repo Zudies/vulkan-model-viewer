@@ -26,6 +26,7 @@ public:
     virtual void SetSceneActive(RendererScene_Base *activeScene) = 0;
     virtual void SetSceneInactive(RendererScene_Base *inactiveScene) = 0;
 
+    //TODO: Should this be here or specific to Vulkan?
     // Called when a swap chain recreation is necessary
     // OnDestroySwapChainFn should be called first before the renderer destroys the swap chain
     // OnCreateSwapChainFn should be called only after the renderer as successfully recreated the swap chain

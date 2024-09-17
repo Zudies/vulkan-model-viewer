@@ -1,12 +1,13 @@
 #include "pch.h"
 #include "VulkanRendererImpl.h"
+
+#include "base/RendererScene_Base.h"
 #include "VulkanAPI.h"
 #include "VulkanAPIImpl.h"
 #include "VulkanFeaturesDefines.h"
 #include "JsonRendererRequirements.h"
 #include "Win32WindowSurface.h"
-
-#include "VulkanRendererScene_Basic.h"
+#include "VulkanCommandBuffer.h"
 
 #include <set>
 
@@ -21,9 +22,7 @@ RendererImpl::RendererImpl()
     m_queues{},
     m_commandPools{},
     m_swapChainOutOfDate(0),
-    m_useValidation(false),
-    m_transferFence{},
-    m_transferCommandBuffer{} {
+    m_useValidation(false) {
 }
 
 RendererImpl::~RendererImpl() {
@@ -156,6 +155,12 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(m_vkExtensionsList.size());
     createInfo.ppEnabledExtensionNames = m_vkExtensionsList.data();
 
+    // Require synchronization2
+    VkPhysicalDeviceSynchronization2Features sync2Features{};
+    sync2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
+    sync2Features.synchronization2 = true;
+    createInfo.pNext = &sync2Features;
+
 #if defined(_DEBUG) && _DEBUG
     LOG_VERBOSE("Creating logical vkDevice with layers:\n");
     for (auto &i : m_vkLayersList) {
@@ -167,7 +172,7 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     }
 #endif
 
-    VkResult vkResult = vkCreateDevice(m_physicalDevice->GetDevice(), &createInfo, nullptr, &m_device);
+    VkResult vkResult = vkCreateDevice(m_physicalDevice->GetDevice(), &createInfo, VK_NULL_HANDLE, &m_device);
     if (vkResult != VK_SUCCESS) {
         LOG_ERROR("vkCreateDevice failed: %d\n", vkResult);
         return VulkanErrorToGraphicsError(vkResult);
@@ -192,26 +197,31 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_GRAPHICS];
 
-    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPools[QUEUE_GRAPHICS]) != VK_SUCCESS) {
+    // Regular command pools
+    if (vkCreateCommandPool(m_device, &poolInfo, VK_NULL_HANDLE, &m_commandPools[QUEUE_GRAPHICS]) != VK_SUCCESS) {
         LOG_ERROR("Unable to create command pool for GRAPHICS queue\n");
         return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
     }
 
-    // Note: This can technically fail if it's the graphics queue and max pools already created?
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_TRANSFER];
-    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPools[QUEUE_TRANSFER]) != VK_SUCCESS) {
-        LOG_ERROR("Unable to create command pool for TRANSFER queue\n");
+    if (m_queueIndices[QUEUE_GRAPHICS] != m_queueIndices[QUEUE_TRANSFER]) {
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_TRANSFER];
+        if (vkCreateCommandPool(m_device, &poolInfo, VK_NULL_HANDLE, &m_commandPools[QUEUE_TRANSFER]) != VK_SUCCESS) {
+            LOG_ERROR("Unable to create command pool for TRANSFER queue\n");
+            return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
+        }
+    }
+    else {
+        m_commandPools[QUEUE_TRANSFER] = m_commandPools[QUEUE_GRAPHICS];
+    }
+
+    // Transfer command pools
+    if (_createTransferCommandPools() != Graphics::GraphicsError::OK) {
+        LOG_ERROR("Unable to create transfer command pools\n");
         return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
     }
-    LOG_INFO("Command pools created successfully\n");
 
-    // Create transfer sync objects
-    VkFenceCreateInfo transferFenceInfo{};
-    transferFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    for (int i = 0; i < QUEUE_COUNT; ++i) {
-        vkCreateFence(m_device, &transferFenceInfo, nullptr, &m_transferFence[i]);
-    }
+    LOG_INFO("Command pools created successfully\n");
 
     return Graphics::GraphicsError::OK;
 }
@@ -221,14 +231,19 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
     vkDeviceWaitIdle(m_device);
 
-    for (int i = 0; i < QUEUE_COUNT; ++i) {
-        vkDestroyFence(m_device, m_transferFence[i], VK_NULL_HANDLE);
-    }
-
+    std::set<VkCommandPool> uniquePools;
     for (int i = 0; i < QUEUE_COUNT; ++i) {
         if (m_commandPools[i]) {
-            vkDestroyCommandPool(m_device, m_commandPools[i], nullptr);
+            uniquePools.insert(m_commandPools[i]);
+            m_commandPools[i] = VK_NULL_HANDLE;
         }
+        if (m_transferCommandPools[i]) {
+            uniquePools.insert(m_transferCommandPools[i]);
+            m_transferCommandPools[i] = VK_NULL_HANDLE;
+        }
+    }
+    for (auto pool : uniquePools) {
+        vkDestroyCommandPool(m_device, pool, VK_NULL_HANDLE);
     }
 
     for (int i = 0; i < m_swapchains.size(); ++i) {
@@ -239,8 +254,8 @@ Graphics::GraphicsError RendererImpl::Finalize() {
     _cleanupSwapChain(-1);
 
     if (m_device) {
-        vkDestroyDevice(m_device, nullptr);
-        m_device = 0;
+        vkDestroyDevice(m_device, VK_NULL_HANDLE);
+        m_device = VK_NULL_HANDLE;
     }
 
     return Graphics::GraphicsError::OK;
@@ -248,13 +263,13 @@ Graphics::GraphicsError RendererImpl::Finalize() {
 
 Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
     ASSERT(m_api->m_vkInstance);
-    
-    // Reset active scenes as necessary
+
+    // Reset active scenes
     if (m_curFrameActiveScenes.size() != m_activeScenes.size()) {
         m_curFrameActiveScenes.insert(m_activeScenes.begin(), m_activeScenes.end());
     }
 
-    // Early update step
+    /* Scene early update */
     for (Graphics::RendererScene_Base *scene : m_curFrameActiveScenes) {
         auto error = scene->EarlyUpdate(deltaTime);
         if (!_handleUpdateError(error, scene)) {
@@ -268,60 +283,56 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
         m_erroredScenes.clear();
     }
 
+    /* Transfer command submission */
     // Check if any transfer commands need to be submitted
-    for (int i = 0; i < QUEUE_COUNT; ++i) {
-        if (!m_registeredTransfers[i].empty()) {
-            auto err = AllocateCommandBuffers(static_cast<QueueType>(i), VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1, &m_transferCommandBuffer[i]);
+    if (!m_registeredTransfers.empty()) {
+        // Reserve the required amount of memory for all command buffers
+        size_t totalCommandBufferCount = 0;
+        for (auto &transferFunc : m_registeredTransfers) {
+            totalCommandBufferCount += transferFunc.commandBufferCount;
+        }
+        m_activeTransferCommandBuffers.reserve(totalCommandBufferCount);
+
+        for (size_t i = 0; i < m_registeredTransfers.size(); ++i) {
+            // Create command buffers for each transfer func
+            size_t startIndex = m_activeTransferCommandBuffers.size();
+            auto err = _allocateTransferCommandBuffers(m_registeredTransfers[i].queue, static_cast<uint32_t>(m_registeredTransfers[i].commandBufferCount), &m_activeTransferCommandBuffers);
             if (err != Graphics::GraphicsError::OK) {
-                return err;
+                // Call the error func then remove this transfer func
+                m_registeredTransfers[i].errorFunc();
+                m_registeredTransfers.erase(m_registeredTransfers.begin() + i);
+                --i;
+                continue;
             }
 
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            if (vkBeginCommandBuffer(m_transferCommandBuffer[i], &beginInfo) != VK_SUCCESS) {
-                vkFreeCommandBuffers(m_device, m_commandPools[QUEUE_TRANSFER], 1, &m_transferCommandBuffer[i]);
-                return Graphics::GraphicsError::COMMAND_BUFFER_CREATE_ERROR;
+            // Call the beginFunc of the transfer
+            err = m_registeredTransfers[i].beginFunc(&m_activeTransferCommandBuffers.at(startIndex));
+            if (err != Graphics::GraphicsError::OK) {
+                // No additional calls to the transfer func
+                m_registeredTransfers.erase(m_registeredTransfers.begin() + i);
+                --i;
+                continue;
             }
-
-            for (auto &transferFunc : m_registeredTransfers[i]) {
-                transferFunc.first(m_transferCommandBuffer[i]);
-            }
-
-            // Submit the command buffer and setup fences
-            vkEndCommandBuffer(m_transferCommandBuffer[i]);
-
-            VkSubmitInfo submitInfo{};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &m_transferCommandBuffer[i];
-
-            vkResetFences(m_device, 1, &m_transferFence[i]);
-            auto vkErr = vkQueueSubmit(m_queues[i], 1, &submitInfo, m_transferFence[i]);
-            if (vkErr == VK_ERROR_DEVICE_LOST) {
-                //TODO: Need to recreate device
-                return Graphics::GraphicsError::DEVICE_LOST;
-            }
-            else if (vkErr != VK_SUCCESS) {
-                return Graphics::GraphicsError::QUEUE_ERROR;
-            }
+            m_registeredTransfers[i].commandBufferIndex = startIndex;
         }
+
+        // Call the endFunc of each transfer after all beginFuncs have been called
+        for (size_t i = 0; i < m_registeredTransfers.size(); ++i) {
+            // Ignore any errors as there will be no other calls to the transfer func regardless
+            m_registeredTransfers[i].endFunc(&m_activeTransferCommandBuffers.at(m_registeredTransfers[i].commandBufferIndex));
+        }
+
+        // Clean up transfer funcs and command buffers
+        m_registeredTransfers.clear();
+        _freeTransferCommandBuffers(&m_activeTransferCommandBuffers);
+
+        // Try to minimize amount of device memory held in cache
+        //TODO: Verify the real effect of this
+        vkResetCommandPool(m_device, m_transferCommandPools[QUEUE_GRAPHICS], VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+        vkResetCommandPool(m_device, m_transferCommandPools[QUEUE_TRANSFER], VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
     }
 
-    // If there were transfer operations, wait for them to finish
-    for (int i = 0; i < QUEUE_COUNT; ++i) {
-        if (!m_registeredTransfers[i].empty()) {
-            vkWaitForFences(m_device, 1, &m_transferFence[i], VK_TRUE, UINT64_MAX);
-            vkFreeCommandBuffers(m_device, m_commandPools[i], 1, &m_transferCommandBuffer[i]);
-
-            for (auto &transferFunc : m_registeredTransfers[i]) {
-                transferFunc.second();
-            }
-            m_registeredTransfers[i].clear();
-        }
-    }
-
-    // Update all active scenes
+    /* Scene update */
     for (Graphics::RendererScene_Base *scene : m_curFrameActiveScenes) {
         auto error = scene->Update(deltaTime);
         if (!_handleUpdateError(error, scene)) {
@@ -335,7 +346,7 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
         m_erroredScenes.clear();
     }
 
-    // Late update step
+    /* Scene late update */
     for (Graphics::RendererScene_Base *scene : m_curFrameActiveScenes) {
         auto error = scene->LateUpdate(deltaTime);
         if (!_handleUpdateError(error, scene)) {
@@ -349,7 +360,7 @@ Graphics::GraphicsError RendererImpl::Update(f64 deltaTime) {
         m_erroredScenes.clear();
     }
 
-    // Check for any swap chain that is out of date
+    /* Swap chain recreation */
     if (m_swapChainOutOfDate) {
         for (int i = 0; m_swapChainOutOfDate && i < (sizeof(m_swapChainOutOfDate) * 8); ++i) {
             if (m_swapChainOutOfDate & (1u << i)) {
@@ -659,8 +670,22 @@ uint32_t RendererImpl::GetQueueIndex(QueueType type) const {
     return m_queueIndices[type];
 }
 
-void RendererImpl::RegisterTransfer(QueueType queue, TransferBeginFunc beginFunc, TransferEndFunc endFunc) {
-    m_registeredTransfers[queue].emplace_back(std::make_pair(beginFunc, endFunc));
+VkQueue RendererImpl::GetQueue(QueueType type) const {
+    return m_queues[type];
+}
+
+void RendererImpl::RegisterTransfer(QueueType queue, size_t commandBufferCount, TransferBeginFunc beginFunc, TransferEndFunc endFunc,
+    TransferErrorFunc errorFunc) {
+    ASSERT(queue != QUEUE_PRESENT);
+
+    TransferFuncDescription transferFunc{};
+    transferFunc.queue = queue;
+    transferFunc.commandBufferCount = commandBufferCount;
+    transferFunc.beginFunc = beginFunc;
+    transferFunc.endFunc = endFunc;
+    transferFunc.errorFunc = errorFunc;
+
+    m_registeredTransfers.emplace_back(transferFunc);
 }
 
 bool RendererImpl::_handleUpdateError(Graphics::GraphicsError error, Graphics::RendererScene_Base *scene) {
@@ -679,6 +704,102 @@ bool RendererImpl::_handleUpdateError(Graphics::GraphicsError error, Graphics::R
     }
 
     return true;
+}
+
+Graphics::GraphicsError RendererImpl::_createTransferCommandPools() {
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_GRAPHICS];
+    if (vkCreateCommandPool(m_device, &poolInfo, VK_NULL_HANDLE, &m_transferCommandPools[QUEUE_GRAPHICS]) != VK_SUCCESS) {
+        LOG_ERROR("Unable to create transfer command pool for GRAPHICS queue\n");
+        return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
+    }
+    if (m_queueIndices[QUEUE_GRAPHICS] != m_queueIndices[QUEUE_TRANSFER]) {
+        poolInfo.queueFamilyIndex = m_queueIndices[QUEUE_TRANSFER];
+        if (vkCreateCommandPool(m_device, &poolInfo, VK_NULL_HANDLE, &m_transferCommandPools[QUEUE_TRANSFER]) != VK_SUCCESS) {
+            LOG_ERROR("Unable to create transfer command pool for TRANSFER queue\n");
+            return Graphics::GraphicsError::COMMAND_POOL_CREATE_ERROR;
+        }
+    }
+    else {
+        m_transferCommandPools[QUEUE_TRANSFER] = m_transferCommandPools[QUEUE_GRAPHICS];
+    }
+    return Graphics::GraphicsError::OK;
+}
+
+Graphics::GraphicsError RendererImpl::_allocateTransferCommandBuffers(uint32_t queue, uint32_t count, CommandBufferArray *outArray) {
+    // If free list doesn't contain enough elements, allocate enough elements to the free list
+    if (m_freeTransferCommandBuffers.size() < count) {
+        m_freeTransferCommandBuffers.reserve(count);
+
+        while (m_freeTransferCommandBuffers.size() < count) {
+            VulkanCommandBuffer newCommandBuffer(this);
+            newCommandBuffer.SetSingleUse(true);
+            newCommandBuffer.SetLevel(VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+            newCommandBuffer.SetWaitFence(true, VK_NULL_HANDLE);
+            m_freeTransferCommandBuffers.emplace_back(std::move(newCommandBuffer));
+        }
+    }
+
+    // Allocate VkCommandBuffers for the command buffers
+    static std::vector<VkCommandBuffer> tempCommandBuffers;
+    tempCommandBuffers.resize(count);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = m_transferCommandPools[queue];
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = count;
+
+    if (vkAllocateCommandBuffers(m_device, &allocInfo, tempCommandBuffers.data()) != VK_SUCCESS) {
+        return Graphics::GraphicsError::COMMAND_BUFFER_CREATE_ERROR;
+    }
+
+    auto firstElement = m_freeTransferCommandBuffers.begin() + (m_freeTransferCommandBuffers.size() - count);
+    for (uint32_t i = 0; i < count; ++i) {
+        auto &commandPool = *(firstElement + i);
+        commandPool.Initialize(queue, tempCommandBuffers[i]);
+    }
+
+    // Move the command buffers into the output
+    outArray->insert(
+        outArray->end(),
+        std::make_move_iterator(firstElement),
+        std::make_move_iterator(m_freeTransferCommandBuffers.end())
+    );
+
+    m_freeTransferCommandBuffers.erase(m_freeTransferCommandBuffers.begin() + (m_freeTransferCommandBuffers.size() - count), m_freeTransferCommandBuffers.end());
+
+    return Graphics::GraphicsError::OK;
+}
+
+void RendererImpl::_freeTransferCommandBuffers(CommandBufferArray *freeCommandBuffers) {
+    // Reset each command buffer then move them into the free list
+    for (auto &commandBuffer : *freeCommandBuffers) {
+        auto vkCommandBuffer = commandBuffer.GetVkCommandBuffer();
+        if (vkCommandBuffer) {
+            vkFreeCommandBuffers(m_device, m_transferCommandPools[commandBuffer.GetQueue()], 1, &vkCommandBuffer);
+        }
+        commandBuffer.Clear();
+    }
+    m_freeTransferCommandBuffers.insert(
+        m_freeTransferCommandBuffers.end(),
+        std::make_move_iterator(freeCommandBuffers->begin()),
+        std::make_move_iterator(freeCommandBuffers->end())
+    );
+    freeCommandBuffers->clear();
+}
+
+void RendererImpl::_releaseTransferCommandBufferResources() {
+    m_freeTransferCommandBuffers.clear();
+
+    // Destroy and recreate the transfer command pools to ensure memory is actually released to the device
+    vkDestroyCommandPool(m_device, m_transferCommandPools[QUEUE_GRAPHICS], VK_NULL_HANDLE);
+    if (m_transferCommandPools[QUEUE_GRAPHICS] != m_transferCommandPools[QUEUE_TRANSFER]) {
+        vkDestroyCommandPool(m_device, m_transferCommandPools[QUEUE_TRANSFER], VK_NULL_HANDLE);
+    }
+    _createTransferCommandPools();
 }
 
 } // namespace Vulkan

@@ -46,6 +46,9 @@ void VulkanRenderEngine::Initialize(System::IntPtr hInstance, System::IntPtr hWn
     // Initialize renderer
     m_renderer = gcnew VulkanRenderer;
     m_renderer->Initialize(m_api, vulkanDevice, m_requirements);
+    //TODO: Command pools are created here but being used in the update thread
+    //      This theoretically shouldn't cause any problems because after initialization
+    //        there is no more rendering occurring on other threads
 
     // Initialize and register the scene
     //TODO: Move this somewhere else to be controlled by UI

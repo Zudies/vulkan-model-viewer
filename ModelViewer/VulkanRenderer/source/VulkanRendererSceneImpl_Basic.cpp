@@ -20,7 +20,7 @@ std::array<VkVertexInputAttributeDescription, 3> RendererSceneImpl_Basic::Vertex
     std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[0].offset = offsetof(Vertex, position);
 
     attributeDescriptions[1].binding = 0;
@@ -41,6 +41,7 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
     m_testSampler(parentRenderer),
     m_renderer(parentRenderer),
     m_renderPass(VK_NULL_HANDLE),
+    m_depthBuffer(parentRenderer),
     m_vertDescriptorSetLayout(VK_NULL_HANDLE),
     m_vertDescriptorPool(VK_NULL_HANDLE),
     m_ubo(parentRenderer),
@@ -98,16 +99,36 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     }
     auto &swapChain = m_renderer->m_swapchains[0];
 
+#pragma region Depth stencil
+    if (m_depthBuffer.Initialize(swapChain.GetExtents().width, swapChain.GetExtents().height) != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"  Failed to initialize depth stencil buffer\n");
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+
+    VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo{};
+    depthStencilCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencilCreateInfo.depthTestEnable = VK_TRUE;
+    depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
+    depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencilCreateInfo.depthBoundsTestEnable = VK_FALSE;
+    depthStencilCreateInfo.minDepthBounds = 0.0f;
+    depthStencilCreateInfo.maxDepthBounds = 1.0f;
+    depthStencilCreateInfo.stencilTestEnable = VK_FALSE;
+    depthStencilCreateInfo.front = {};
+    depthStencilCreateInfo.back = {};
+#pragma endregion
+
 #pragma region Render pass
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-    VkAttachmentDescription colorAttachment{};
+    VkAttachmentDescription renderpassAttachments[] = { {}, {} };
+    VkAttachmentDescription &colorAttachment = renderpassAttachments[0];
     colorAttachment.format = swapChain.GetFormat();
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -121,15 +142,30 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription &depthAttachment = renderpassAttachments[1];
+    depthAttachment.format = m_depthBuffer.GetFormat();
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.attachmentCount = countof(renderpassAttachments);
+    renderPassInfo.pAttachments = renderpassAttachments;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = 1;
@@ -219,10 +255,6 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     multisampling.alphaToOneEnable = VK_FALSE;
 #pragma endregion
 
-#pragma region Depth/stencil
-
-#pragma endregion
-
 #pragma region Color blending
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -298,7 +330,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = VK_NULL_HANDLE;
+    pipelineInfo.pDepthStencilState = &depthStencilCreateInfo;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = m_pipelineLayout;
@@ -424,17 +456,26 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
     LOG_INFO(L"Creating scene objects\n");
 #pragma region Scene objects
-    m_testRenderObject.SetVertexCount(4);
+    m_testRenderObject.SetVertexCount(8);
     Vertex *vertexData = reinterpret_cast<Vertex*>(m_testRenderObject.GetVertexData());
-    m_testRenderObject.SetIndexCount(6);
+    m_testRenderObject.SetIndexCount(12);
     uint16_t *indexData = reinterpret_cast<uint16_t*>(m_testRenderObject.GetIndexData());
 
-    vertexData[0] = { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} };
-    vertexData[1] = { {0.5f, -0.5f}, { 0.0f, 1.0f, 0.0f }, {0.0f, 0.0f} };
-    vertexData[2] = { {0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} };
-    vertexData[3] = { {-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} };
+    vertexData[0] = { {-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} };
+    vertexData[1] = { {0.5f, -0.5f, 0.0f}, { 0.0f, 1.0f, 0.0f }, {0.0f, 0.0f} };
+    vertexData[2] = { {0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} };
+    vertexData[3] = { {-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} };
+
+    vertexData[4] = { {-0.5f, -0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } };
+    vertexData[5] = { {0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} };
+    vertexData[6] = { {0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} };
+    vertexData[7] = { {-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} };
+
     indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
     indexData[3] = 2; indexData[4] = 3; indexData[5] = 0;
+
+    indexData[6] = 4; indexData[7] = 5; indexData[8] = 6;
+    indexData[9] = 6; indexData[10] = 7; indexData[11] = 4;
 
     m_testRenderObject.FlushVertexToDevice();
     m_testRenderObject.FlushIndexToDevice();
@@ -487,7 +528,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
     ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f))
                 * glm::rotate(glm::mat4(1.0f), static_cast<float>(m_accumulatedTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f))
                 * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
-    ubo.view = glm::lookAt(glm::vec3(0.0f, -1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(90.0f), swapChain.GetExtents().width / static_cast<float>(swapChain.GetExtents().height), 0.1f, 10.0f);
 
     uint8_t *data = reinterpret_cast<uint8_t*>(m_ubo.GetMappedMemory(m_curFrameIndex));
@@ -529,9 +570,13 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     renderPassInfo.framebuffer = m_swapChainFramebuffers[m_curSwapChainImageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swapChain.GetExtents();
-    VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+
+    VkClearValue clearColors[2] = {};
+    clearColors[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+    clearColors[1].depthStencil = { 1.0f, 0 };
+    renderPassInfo.clearValueCount = countof(clearColors);
+    renderPassInfo.pClearValues = clearColors;
+
     vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
@@ -621,6 +666,9 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_onDestroySwapChain(int idx) {
             vkDestroyFramebuffer(m_renderer->GetDevice(), framebuffer, VK_NULL_HANDLE);
         }
         m_swapChainFramebuffers.clear();
+
+        // Destroy depth buffer
+        m_depthBuffer.Clear();
     }
 
     return Graphics::GraphicsError::OK;
@@ -637,10 +685,19 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_onCreateSwapChain(int idx) {
             return Graphics::GraphicsError::SWAPCHAIN_INVALID;
         }
 
-        auto err = _createRenderPass(swapChain);
+        // Recreate depth buffer
+        auto err = m_depthBuffer.Initialize(swapChain.GetExtents().width, swapChain.GetExtents().height);
         if (err != Graphics::GraphicsError::OK) {
             return err;
         }
+
+        // Recreate render pass
+        err = _createRenderPass(swapChain);
+        if (err != Graphics::GraphicsError::OK) {
+            return err;
+        }
+
+        // Recreate framebuffers
         return _createSwapChainFrameBuffers(swapChain);
     }
     return Graphics::GraphicsError::OK;
@@ -661,11 +718,13 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_createSwapChainFrameBuffers(Vu
     auto &swapChainImageViews = swapChain.GetImageViews();
     m_swapChainFramebuffers.resize(swapChainImageViews.size());
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        VkImageView attachments[] = { swapChainImageViews[i], m_depthBuffer.GetDeviceImageView() };
+
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = m_renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &swapChainImageViews[i];
+        framebufferInfo.attachmentCount = countof(attachments);
+        framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = swapChain.GetExtents().width;
         framebufferInfo.height = swapChain.GetExtents().height;
         framebufferInfo.layers = 1;

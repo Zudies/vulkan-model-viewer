@@ -5,6 +5,7 @@
 namespace Vulkan {
 
 class RendererImpl;
+class VulkanCommandBuffer;
 
 template<class VertexType>
 class VulkanVertexBuffer {
@@ -34,8 +35,9 @@ public:
     void ClearHostResources();
 
 private:
-    void _beginTransferCommand(VkDeviceSize size, VulkanBuffer *srcBuffer, VulkanBuffer *dstBuffer, VkCommandBuffer commandBuffer);
-    void _endTransferCommand(VulkanBuffer *stagingBuffer);
+    Graphics::GraphicsError _beginTransferCommand(VkDeviceSize size, VulkanBuffer *srcBuffer, VulkanBuffer *dstBuffer, VulkanCommandBuffer *commandBuffer);
+    Graphics::GraphicsError _endTransferCommand(VulkanBuffer *stagingBuffer, VulkanCommandBuffer *commandBuffer);
+    void _errorTransferCommand(VulkanBuffer *stagingBuffer);
 
 private:
     typedef std::vector<VertexType> VertexData;
