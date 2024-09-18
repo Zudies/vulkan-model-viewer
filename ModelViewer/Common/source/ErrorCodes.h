@@ -48,6 +48,9 @@ enum class GraphicsError {
     // Failed to create an image
     IMAGE_CREATE_ERROR,
 
+    // Failed to create a render pass
+    RENDERPASS_CREATE_ERROR,
+
     // Memory pool could not be found
     NO_SUPPORTED_MEMORY,
 

@@ -53,6 +53,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Common\source;$(SolutionDir)Common\ext;$(ProjectDir)source;$(ProjectDir);$(VULKAN_SDK)\Include\vulkan;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -90,8 +91,10 @@
     <ClInclude Include="source\VulkanImageBuffer.h" />
     <ClInclude Include="source\Vulkan2DTextureBuffer.h" />
     <ClInclude Include="source\VulkanMultiBuffer.h" />
+    <ClInclude Include="source\VulkanPipeline.h" />
     <ClInclude Include="source\VulkanRendererScene_Basic.h" />
     <ClInclude Include="source\VulkanRendererSceneImpl_Basic.h" />
+    <ClInclude Include="source\VulkanRenderPass.h" />
     <ClInclude Include="source\VulkanSampler.h" />
     <ClInclude Include="source\VulkanShaderModule.h" />
     <ClInclude Include="source\VulkanSwapChain.h" />
@@ -120,10 +123,12 @@
     <ClCompile Include="source\Vulkan2DTextureBuffer.cpp" />
     <ClCompile Include="source\VulkanMultiBuffer.cpp" />
     <ClCompile Include="source\VulkanPhysicalDevice.cpp" />
+    <ClCompile Include="source\VulkanPipeline.cpp" />
     <ClCompile Include="source\VulkanRenderer.cpp" />
     <ClCompile Include="source\VulkanRendererImpl.cpp" />
     <ClCompile Include="source\VulkanRendererScene_Basic.cpp" />
     <ClCompile Include="source\VulkanRendererSceneImpl_Basic.cpp" />
+    <ClCompile Include="source\VulkanRenderPass.cpp" />
     <ClCompile Include="source\VulkanSampler.cpp" />
     <ClCompile Include="source\VulkanShaderModule.cpp" />
     <ClCompile Include="source\VulkanSwapChain.cpp" />

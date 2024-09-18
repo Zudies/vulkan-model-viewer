@@ -32,7 +32,7 @@ VulkanCommandBuffer::~VulkanCommandBuffer() {
     delete m_signalSemaphores;
 }
 
-VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer &&other)
+VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer &&other) noexcept
   : m_renderer(other.m_renderer),
     m_commandBuffer(other.m_commandBuffer),
     m_fence(other.m_fence),
@@ -48,7 +48,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer &&other)
     other.m_signalSemaphores = nullptr;
 }
 
-VulkanCommandBuffer &VulkanCommandBuffer::operator=(VulkanCommandBuffer &&other) {
+VulkanCommandBuffer &VulkanCommandBuffer::operator=(VulkanCommandBuffer &&other) noexcept {
     m_renderer = other.m_renderer;
     m_commandBuffer = other.m_commandBuffer;
     m_fence = other.m_fence;

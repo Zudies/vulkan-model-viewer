@@ -6,13 +6,22 @@ namespace Vulkan {
 
 VulkanShaderModule::VulkanShaderModule(RendererImpl *parentRenderer)
   : m_renderer(parentRenderer),
-    m_shaderModule(VK_NULL_HANDLE) {
+    m_shaderModule(VK_NULL_HANDLE),
+    m_shaderStage(static_cast<VkShaderStageFlagBits>(0)) {
 }
 
 VulkanShaderModule::~VulkanShaderModule() {
     if (m_shaderModule != VK_NULL_HANDLE) {
         vkDestroyShaderModule(m_renderer->m_device, m_shaderModule, VK_NULL_HANDLE);
     }
+}
+
+void VulkanShaderModule::SetShaderStage(VkShaderStageFlagBits shaderStage) {
+    m_shaderStage = shaderStage;
+}
+
+VkShaderStageFlagBits VulkanShaderModule::GetShaderStage() const {
+    return m_shaderStage;
 }
 
 std::string const &VulkanShaderModule::GetLastError() const {

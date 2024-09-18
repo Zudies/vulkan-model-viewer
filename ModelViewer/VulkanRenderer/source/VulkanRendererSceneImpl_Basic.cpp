@@ -62,6 +62,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
 #pragma region Shader modules
     VulkanShaderModule vertShader(m_renderer);
+    vertShader.SetShaderStage(VK_SHADER_STAGE_VERTEX_BIT);
     vertShader.CreateFromSpirv("resources/basic-vert.spv");
     if (!vertShader.GetLastError().empty()) {
         LOG_ERROR(L"  Vertex shader creation error: %hs\n", vertShader.GetLastError().c_str());
@@ -69,6 +70,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     }
 
     VulkanShaderModule fragShader(m_renderer);
+    fragShader.SetShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT);
     fragShader.CreateFromSpirv("resources/basic-frag.spv");
     if (!fragShader.GetLastError().empty()) {
         LOG_ERROR(L"  Fragment shader creation error: %hs\n", fragShader.GetLastError().c_str());

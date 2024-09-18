@@ -13,8 +13,8 @@ public:
     VulkanCommandBuffer &operator=(VulkanCommandBuffer const &) = delete;
     ~VulkanCommandBuffer();
 
-    VulkanCommandBuffer(VulkanCommandBuffer &&other);
-    VulkanCommandBuffer &operator=(VulkanCommandBuffer &&other);
+    VulkanCommandBuffer(VulkanCommandBuffer &&other) noexcept;
+    VulkanCommandBuffer &operator=(VulkanCommandBuffer &&other) noexcept;
 
     // Default: Not single use
     void SetSingleUse(bool singleUse);
