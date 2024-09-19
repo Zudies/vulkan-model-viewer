@@ -88,6 +88,8 @@
     <ClInclude Include="source\VulkanBuffer.h" />
     <ClInclude Include="source\VulkanCommandBuffer.h" />
     <ClInclude Include="source\VulkanDepthStencilBuffer.h" />
+    <ClInclude Include="source\VulkanDescriptorSetLayout.h" />
+    <ClInclude Include="source\VulkanDescriptorSetInstance.h" />
     <ClInclude Include="source\VulkanImageBuffer.h" />
     <ClInclude Include="source\Vulkan2DTextureBuffer.h" />
     <ClInclude Include="source\VulkanMultiBuffer.h" />
@@ -118,6 +120,8 @@
     <ClCompile Include="source\VulkanBuffer.cpp" />
     <ClCompile Include="source\VulkanCommandBuffer.cpp" />
     <ClCompile Include="source\VulkanDepthStencilBuffer.cpp" />
+    <ClCompile Include="source\VulkanDescriptorSetInstance.cpp" />
+    <ClCompile Include="source\VulkanDescriptorSetLayout.cpp" />
     <ClCompile Include="source\VulkanErrorToGraphicsError.cpp" />
     <ClCompile Include="source\VulkanImageBuffer.cpp" />
     <ClCompile Include="source\Vulkan2DTextureBuffer.cpp" />

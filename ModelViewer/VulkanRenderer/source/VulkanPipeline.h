@@ -7,6 +7,7 @@ namespace Vulkan {
 class RendererImpl;
 class VulkanShaderModule;
 class VulkanRenderPass;
+class VulkanDescriptorSetLayout;
 
 class VulkanPipeline {
 public:
@@ -38,7 +39,22 @@ public:
     // If a shader stage is already set when this is called, the previous value is overwritten
     void SetShaderStage(VulkanShaderModule *shader, const char *entryFunc);
 
-    //TODO: Descriptor sets
+    // Each call will set the descriptor set at the specified index of the pipeline layout
+    // Max 4 descriptor sets
+    void SetDescriptorSet(uint32_t descriptorSetIndex, VulkanDescriptorSetLayout *descriptorSet);
+
+    // Adds a push constant range to the pipeline layout
+    // Additional calls will continue to add more ranges until ResetPipelineLayout is called
+    void AddPushConstantRange(uint32_t offset, uint32_t size, VkShaderStageFlags shaderStages);
+
+    // Creates the pipeline layout with the currently set descriptor sets and push constant ranges
+    // The VkPipelineLayout created here will not be released when calling ClearResources
+    // Once the pipeline layout is created, additional descriptor set layouts and push constant ranges will no longer affect the pipeline layout
+    Graphics::GraphicsError CreatePipelineLayout();
+
+    // Destroys the VkPipelineLayout and clears push constant ranges
+    // Descriptor set layouts will not be reset
+    void ResetPipelineLayout();
 
     // If a dynamic state is set, the corresponding pipeline setter is optional and its value will be ignored
     // All desired dynamic states should be set in the same call
@@ -96,9 +112,6 @@ public:
 
     // Default: 0.0f, 0.0f, 0.0f, 0.0f
     void SetColorBlendConstants(float r, float g, float b, float a);
-
-
-
 #pragma endregion
 
     // Creates a new pipeline if necessary
@@ -110,29 +123,29 @@ public:
 private:
     RendererImpl *m_renderer;
     Graphics::BitFlag<uint32_t> m_flags;
-    VkPipelineCreateFlags m_createFlags;
+    VkPipeline m_vkPipeline;
 
     // States preserved between ClearResources
+    VkPipelineCreateFlags m_createFlags;
     std::vector<std::string> m_shaderEntryFuncNames;
     std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages;
     std::vector<VkVertexInputBindingDescription> m_vertexBindings;
     std::vector<VkVertexInputAttributeDescription> m_vertexAttributes;
-    VkPipelineVertexInputStateCreateInfo m_vertexInputState;
-    VkPipelineInputAssemblyStateCreateInfo m_inputAssemblyState;
+    VkPrimitiveTopology m_inputAssemblyTopology;
+    VkBool32 m_inputAssemblyPrimitiveRestart;
     VkViewport m_viewportData;
     VkRect2D m_scissorData;
-    VkPipelineViewportStateCreateInfo m_viewportState;
     VkPipelineRasterizationStateCreateInfo m_rasterizerState;
     VkPipelineMultisampleStateCreateInfo m_multisampleState;
     VkPipelineDepthStencilStateCreateInfo m_depthStencilState;
     std::vector<VkPipelineColorBlendAttachmentState> m_colorBlendAttachments;
     VkPipelineColorBlendStateCreateInfo m_colorBlendState;
     std::vector<VkDynamicState> m_dynamicStatesBuffer;
-    VkPipelineDynamicStateCreateInfo m_dynamicState;
     VkRenderPass m_renderPass;
     uint32_t m_subpassIndex;
-
-    //TODO: layout
+    std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
+    std::vector<VkPushConstantRange> m_pushConstantRanges;
+    VkPipelineLayout m_vkPipelineLayout;
 
 };
 

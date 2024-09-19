@@ -51,6 +51,12 @@ enum class GraphicsError {
     // Failed to create a render pass
     RENDERPASS_CREATE_ERROR,
 
+    // Failed to create a descriptor set or descriptor set layout
+    DESCRIPTOR_SET_CREATE_ERROR,
+
+    // Failed to create a pipeline
+    PIPELINE_CREATE_ERROR,
+
     // Memory pool could not be found
     NO_SUPPORTED_MEMORY,
 

@@ -87,6 +87,12 @@
     <ClInclude Include="source\VulkanRenderPass.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanDescriptorSetLayout.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\VulkanDescriptorSetInstance.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -150,6 +156,12 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanRenderPass.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanDescriptorSetInstance.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanDescriptorSetLayout.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>
