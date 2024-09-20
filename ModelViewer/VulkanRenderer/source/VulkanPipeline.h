@@ -22,6 +22,11 @@ public:
     // Any flags set will be OR'd with the current flags
     void SetPipelineFlags(VkPipelineCreateFlags flags);
 
+    // If a dynamic state is set, the corresponding pipeline setter is optional and its value will be ignored
+    // All desired dynamic states should be set in the same call
+    // Additional calls to this will overwrite all previous values
+    void SetDynamicStates(uint32_t dynamicStateCount, VkDynamicState *dynamicStates);
+
     /* Vertex input state */
     // Only one vertex input state can be set
     // Additional sets will overwrite previous values
@@ -47,19 +52,8 @@ public:
     // Additional calls will continue to add more ranges until ResetPipelineLayout is called
     void AddPushConstantRange(uint32_t offset, uint32_t size, VkShaderStageFlags shaderStages);
 
-    // Creates the pipeline layout with the currently set descriptor sets and push constant ranges
-    // The VkPipelineLayout created here will not be released when calling ClearResources
-    // Once the pipeline layout is created, additional descriptor set layouts and push constant ranges will no longer affect the pipeline layout
-    Graphics::GraphicsError CreatePipelineLayout();
-
-    // Destroys the VkPipelineLayout and clears push constant ranges
-    // Descriptor set layouts will not be reset
-    void ResetPipelineLayout();
-
-    // If a dynamic state is set, the corresponding pipeline setter is optional and its value will be ignored
-    // All desired dynamic states should be set in the same call
-    // Additional calls to this will overwrite all previous values
-    void SetDynamicStates(uint32_t dynamicStateCount, VkDynamicState *dynamicStates);
+    // Clears push constant ranges, reseting the layout back to having no push constants
+    void ResetPushConstantRange();
 
     // Required if not dynamic
     void SetViewport(VkViewport viewport);
@@ -82,7 +76,7 @@ public:
     // Default: false, 0.0f, 0.0f, 0.0f
     void SetDepthBias(bool enable, float constantFactor, float clamp, float slopeFactor);
 
-    // Default: 0.0f
+    // Default: 1.0f
     void SetLineWidth(float lineWidth);
 
     //TODO: Tesselation state
@@ -118,6 +112,12 @@ public:
     // Returns the previously created pipeline if no state changes have been made
     Graphics::GraphicsError CreatePipeline(VkPipeline *out);
 
+    // Note these functions bypass the dirty flag/recreate pipeline logic
+    // Only use if you know the pipeline has not been modified
+    VkPipeline GetVkPipeline() const;
+    VkPipelineLayout GetVkPipelineLayout() const;
+
+    // Clears device resources used by the pipeline, forcing the next call to CreatePipeline to create a new VkPipeline object
     void ClearResources();
 
 private:

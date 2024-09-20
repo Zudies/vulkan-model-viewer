@@ -1,7 +1,10 @@
 #pragma once
 
+#include "VulkanRenderPass.h"
 #include "VulkanShaderModule.h"
 #include "VulkanVertexBuffer.h"
+#include "VulkanDescriptorSetLayout.h"
+#include "VulkanPipeline.h"
 #include "VulkanUniformBufferObject.h"
 #include "Vulkan2DTextureBuffer.h"
 #include "VulkanSampler.h"
@@ -58,13 +61,17 @@ private:
     RendererImpl *m_renderer;
 
     typedef std::vector<VkFramebuffer> FrameBufferArray;
-    VkRenderPass m_renderPass;
+
+    VulkanShaderModule m_vertexShader;
+    VulkanShaderModule m_fragmentShader;
+    VulkanRenderPass m_renderPass;
+    VulkanDescriptorSetLayout m_perFrameDescriptorSetLayout;
+    VulkanPipeline m_pipeline;
     FrameBufferArray m_swapChainFramebuffers;
     VulkanDepthStencilBuffer m_depthBuffer;
 
     //TODO: Move into shader modules
     typedef std::vector<VkDescriptorSet> DescriptorSetArray;
-    VkDescriptorSetLayout m_vertDescriptorSetLayout;
     VkDescriptorPool m_vertDescriptorPool;
     DescriptorSetArray m_vertDescriptorSets;
     VulkanUniformBufferObject m_ubo;
@@ -78,9 +85,6 @@ private:
     SemaphoreArray m_swapChainSemaphores;
     SemaphoreArray m_renderFinishedSemaphores;
     FenceArray m_renderFinishedFences;
-
-    VkPipelineLayout m_pipelineLayout;
-    VkPipeline m_pipeline;
 
     f64 m_accumulatedTime;
 };

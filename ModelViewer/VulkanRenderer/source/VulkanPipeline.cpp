@@ -10,6 +10,7 @@ namespace Vulkan {
 
 // Local flags
 static const uint32_t VULKAN_PIPELINE_FLAG_DIRTY = 0x0001;
+static const uint32_t VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY = 0x0002;
 
 VulkanPipeline::VulkanPipeline(RendererImpl *renderer)
   : m_renderer(renderer),
@@ -33,6 +34,7 @@ VulkanPipeline::VulkanPipeline(RendererImpl *renderer)
     m_rasterizerState.polygonMode = VK_POLYGON_MODE_FILL;
     m_rasterizerState.cullMode = VK_CULL_MODE_NONE;
     m_rasterizerState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    m_rasterizerState.lineWidth = 1.0f;
 
     //TODO:
     m_multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -52,7 +54,6 @@ VulkanPipeline::VulkanPipeline(RendererImpl *renderer)
 
 VulkanPipeline::~VulkanPipeline() {
     ClearResources();
-    ResetPipelineLayout();
 }
 
 void VulkanPipeline::SetPipelineFlags(VkPipelineCreateFlags flags) {
@@ -104,37 +105,19 @@ void VulkanPipeline::SetShaderStage(VulkanShaderModule *shader, const char *entr
 }
 
 void VulkanPipeline::SetDescriptorSet(uint32_t descriptorSetIndex, VulkanDescriptorSetLayout *descriptorSet) {
+    m_flags.SetFlag(VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY);
     m_descriptorSetLayouts[descriptorSetIndex] = descriptorSet ? descriptorSet->GetVkLayout() : VK_NULL_HANDLE;
 }
 
 void VulkanPipeline::AddPushConstantRange(uint32_t offset, uint32_t size, VkShaderStageFlags shaderStages) {
+    m_flags.SetFlag(VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY);
     m_pushConstantRanges.emplace_back(VkPushConstantRange{ shaderStages, offset, size });
 }
 
-Graphics::GraphicsError VulkanPipeline::CreatePipelineLayout() {
-    m_flags.SetFlag(VULKAN_PIPELINE_FLAG_DIRTY);
-
-    VkPipelineLayoutCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    createInfo.setLayoutCount = static_cast<uint32_t>(m_descriptorSetLayouts.size());
-    createInfo.pSetLayouts = m_descriptorSetLayouts.data();
-    createInfo.pushConstantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size());
-    createInfo.pPushConstantRanges = m_pushConstantRanges.data();
-
-    if (vkCreatePipelineLayout(m_renderer->GetDevice(), &createInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS) {
-        return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
-    }
-
-    return Graphics::GraphicsError::OK;
-}
-
-void VulkanPipeline::ResetPipelineLayout() {
-    m_flags.SetFlag(VULKAN_PIPELINE_FLAG_DIRTY);
+void VulkanPipeline::ResetPushConstantRange() {
+    m_flags.SetFlag(VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY);
 
     m_pushConstantRanges.clear();
-    if (m_vkPipelineLayout) {
-        vkDestroyPipelineLayout(m_renderer->GetDevice(), m_vkPipelineLayout, VK_NULL_HANDLE);
-    }
 }
 
 void VulkanPipeline::SetDynamicStates(uint32_t dynamicStateCount, VkDynamicState *dynamicStates) {
@@ -264,17 +247,49 @@ void VulkanPipeline::SetColorBlendConstants(float r, float g, float b, float a) 
 
 Graphics::GraphicsError VulkanPipeline::CreatePipeline(VkPipeline *out) {
     if (m_vkPipeline && !m_flags.GetFlag(VULKAN_PIPELINE_FLAG_DIRTY)) {
-        *out = m_vkPipeline;
+        if (out) {
+            *out = m_vkPipeline;
+        }
         return Graphics::GraphicsError::OK;
     }
 
-    // No pipeline yet so create one
+    // Clear previous resources as a new pipeline is about to be created
+    ClearResources();
+
     VkGraphicsPipelineCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 
     // Set shader entry funcs once we know the entry func names vector won't change anymore
     for (size_t i = 0; i < m_shaderStages.size(); ++i) {
         m_shaderStages[i].pName = m_shaderEntryFuncNames[i].c_str();
+    }
+
+    // Create the pipeline layout if necessary
+    if (!m_vkPipelineLayout || m_flags.GetFlag(VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY)) {
+        if (m_vkPipelineLayout) {
+            vkDestroyPipelineLayout(m_renderer->GetDevice(), m_vkPipelineLayout, VK_NULL_HANDLE);
+            m_vkPipelineLayout = VK_NULL_HANDLE;
+        }
+
+        uint32_t layoutCount = 0;
+        for (auto layout : m_descriptorSetLayouts) {
+            if (layout) {
+                ++layoutCount;
+            }
+        }
+
+        VkPipelineLayoutCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        createInfo.setLayoutCount = layoutCount;
+        createInfo.pSetLayouts = m_descriptorSetLayouts.data();
+        createInfo.pushConstantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size());
+        createInfo.pPushConstantRanges = m_pushConstantRanges.data();
+
+        if (vkCreatePipelineLayout(m_renderer->GetDevice(), &createInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS) {
+            return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
+        }
+
+        m_flags.ClearFlag(VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY);
     }
 
     createInfo.flags = m_createFlags;
@@ -299,7 +314,7 @@ Graphics::GraphicsError VulkanPipeline::CreatePipeline(VkPipeline *out) {
 
     createInfo.pTessellationState = nullptr;
 
-    VkPipelineViewportStateCreateInfo viewportState;
+    VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
     viewportState.pViewports = &m_viewportData;
@@ -327,12 +342,31 @@ Graphics::GraphicsError VulkanPipeline::CreatePipeline(VkPipeline *out) {
         return Graphics::GraphicsError::PIPELINE_CREATE_ERROR;
     }
 
+    m_flags.ClearFlag(VULKAN_PIPELINE_FLAG_DIRTY);
+
+    if (out) {
+        *out = m_vkPipeline;
+    }
+
     return Graphics::GraphicsError::OK;
+}
+
+VkPipeline VulkanPipeline::GetVkPipeline() const {
+    return m_vkPipeline;
+}
+
+VkPipelineLayout VulkanPipeline::GetVkPipelineLayout() const {
+    return m_vkPipelineLayout;
 }
 
 void VulkanPipeline::ClearResources() {
     if (m_vkPipeline) {
         vkDestroyPipeline(m_renderer->GetDevice(), m_vkPipeline, VK_NULL_HANDLE);
+        m_vkPipeline = VK_NULL_HANDLE;
+    }
+    if (m_vkPipelineLayout) {
+        vkDestroyPipelineLayout(m_renderer->GetDevice(), m_vkPipelineLayout, VK_NULL_HANDLE);
+        m_vkPipelineLayout = VK_NULL_HANDLE;
     }
 }
 

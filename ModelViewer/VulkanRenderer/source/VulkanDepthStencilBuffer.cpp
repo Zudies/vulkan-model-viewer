@@ -15,14 +15,20 @@ VulkanDepthStencilBuffer::~VulkanDepthStencilBuffer() {
     Clear();
 }
 
-Graphics::GraphicsError VulkanDepthStencilBuffer::Initialize(uint32_t width, uint32_t height) {
+Graphics::GraphicsError VulkanDepthStencilBuffer::Initialize(uint32_t width, uint32_t height, VkFormat desiredFormat) {
     static const VkFormat FORMAT_CANDIDATES[] = {
         VK_FORMAT_D32_SFLOAT,
         VK_FORMAT_D32_SFLOAT_S8_UINT,
         VK_FORMAT_D24_UNORM_S8_UINT
     };
+
     m_imageBuffer.SetExtents(width, height, 1);
-    m_imageBuffer.SetFormatBestCandidate(FORMAT_CANDIDATES, countof(FORMAT_CANDIDATES), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+    if (!m_imageBuffer.SetFormatBestCandidate(&desiredFormat, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
+        if (!m_imageBuffer.SetFormatBestCandidate(FORMAT_CANDIDATES, countof(FORMAT_CANDIDATES), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
+            return Graphics::GraphicsError::UNSUPPORTED_FORMAT;
+        }
+    }
 
     auto err = m_imageBuffer.Initialize(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, nullptr, 0);
     if (err != Graphics::GraphicsError::OK) {

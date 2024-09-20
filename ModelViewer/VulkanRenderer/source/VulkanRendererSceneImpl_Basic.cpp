@@ -2,6 +2,7 @@
 #include "VulkanRendererSceneImpl_Basic.h"
 #include "VulkanRendererImpl.h"
 
+#include "VulkanPipeline.h"
 #include "glm/gtc/matrix_transform.hpp"
 
 namespace Vulkan {
@@ -40,15 +41,16 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
     m_testTexture(parentRenderer),
     m_testSampler(parentRenderer),
     m_renderer(parentRenderer),
-    m_renderPass(VK_NULL_HANDLE),
+    m_vertexShader(parentRenderer),
+    m_fragmentShader(parentRenderer),
+    m_renderPass(parentRenderer),
+    m_perFrameDescriptorSetLayout(parentRenderer),
+    m_pipeline(parentRenderer),
     m_depthBuffer(parentRenderer),
-    m_vertDescriptorSetLayout(VK_NULL_HANDLE),
     m_vertDescriptorPool(VK_NULL_HANDLE),
     m_ubo(parentRenderer),
     m_curFrameIndex(0),
     m_curSwapChainImageIndex(0),
-    m_pipelineLayout(VK_NULL_HANDLE),
-    m_pipeline(VK_NULL_HANDLE),
     m_accumulatedTime(0.0) {
     ASSERT(parentRenderer);
 }
@@ -57,42 +59,7 @@ RendererSceneImpl_Basic::~RendererSceneImpl_Basic() {
 }
 
 Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
-    LOG_INFO(L"Creating pipeline for 'Basic'\n");
     //TODO: Read overrides from UI
-
-#pragma region Shader modules
-    VulkanShaderModule vertShader(m_renderer);
-    vertShader.SetShaderStage(VK_SHADER_STAGE_VERTEX_BIT);
-    vertShader.CreateFromSpirv("resources/basic-vert.spv");
-    if (!vertShader.GetLastError().empty()) {
-        LOG_ERROR(L"  Vertex shader creation error: %hs\n", vertShader.GetLastError().c_str());
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-
-    VulkanShaderModule fragShader(m_renderer);
-    fragShader.SetShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT);
-    fragShader.CreateFromSpirv("resources/basic-frag.spv");
-    if (!fragShader.GetLastError().empty()) {
-        LOG_ERROR(L"  Fragment shader creation error: %hs\n", fragShader.GetLastError().c_str());
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-#pragma endregion
-
-#pragma region Pipeline shader stage
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShader.GetShaderModule();
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShader.GetShaderModule();
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-#pragma endregion
 
     // Assume swapchain 0
     if (m_renderer->m_swapchains.size() <= 0) {
@@ -101,36 +68,53 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     }
     auto &swapChain = m_renderer->m_swapchains[0];
 
-#pragma region Depth stencil
-    if (m_depthBuffer.Initialize(swapChain.GetExtents().width, swapChain.GetExtents().height) != Graphics::GraphicsError::OK) {
+#pragma region Shader modules
+    LOG_INFO(L"Loading shaders\n");
+    m_vertexShader.SetShaderStage(VK_SHADER_STAGE_VERTEX_BIT);
+    m_vertexShader.CreateFromSpirv("resources/basic-vert.spv");
+    if (!m_vertexShader.GetLastError().empty()) {
+        LOG_ERROR(L"  Vertex shader creation error: %hs\n", m_vertexShader.GetLastError().c_str());
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+
+    m_fragmentShader.SetShaderStage(VK_SHADER_STAGE_FRAGMENT_BIT);
+    m_fragmentShader.CreateFromSpirv("resources/basic-frag.spv");
+    if (!m_fragmentShader.GetLastError().empty()) {
+        LOG_ERROR(L"  Fragment shader creation error: %hs\n", m_fragmentShader.GetLastError().c_str());
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+    LOG_INFO("Shaders loaded successfully\n");
+#pragma endregion
+
+#pragma region Descriptor sets
+    LOG_INFO(L"Creating descriptor sets\n");
+    m_perFrameDescriptorSetLayout.AddUniformBuffer(0, 1, VK_SHADER_STAGE_VERTEX_BIT);
+    //TODO: Move to different layout
+    m_perFrameDescriptorSetLayout.AddCombinedImageSampler(1, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    if (m_perFrameDescriptorSetLayout.Initialize() != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"  Failed to create per frame descriptor set layout\n");
+        return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
+    }
+
+    //TODO: Create the sets themselves
+    LOG_INFO(L"Descriptor sets created successfully\n");
+#pragma endregion
+
+#pragma region Depth stencil buffer
+    LOG_INFO(L"Creating depth buffers\n");
+
+    if (m_depthBuffer.Initialize(swapChain.GetExtents().width, swapChain.GetExtents().height, VK_FORMAT_D32_SFLOAT) != Graphics::GraphicsError::OK) {
         LOG_ERROR(L"  Failed to initialize depth stencil buffer\n");
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
-    VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo{};
-    depthStencilCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencilCreateInfo.depthTestEnable = VK_TRUE;
-    depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
-    depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
-    depthStencilCreateInfo.depthBoundsTestEnable = VK_FALSE;
-    depthStencilCreateInfo.minDepthBounds = 0.0f;
-    depthStencilCreateInfo.maxDepthBounds = 1.0f;
-    depthStencilCreateInfo.stencilTestEnable = VK_FALSE;
-    depthStencilCreateInfo.front = {};
-    depthStencilCreateInfo.back = {};
+    LOG_INFO(L"Depth buffers created successfully\n");
 #pragma endregion
 
 #pragma region Render pass
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    LOG_INFO(L"Creating render passes\n");
 
-    VkAttachmentDescription renderpassAttachments[] = { {}, {} };
-    VkAttachmentDescription &colorAttachment = renderpassAttachments[0];
+    VkAttachmentDescription colorAttachment{};
     colorAttachment.format = swapChain.GetFormat();
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -139,12 +123,9 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    m_renderPass.AddAttachment(&colorAttachment);
 
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentDescription &depthAttachment = renderpassAttachments[1];
+    VkAttachmentDescription depthAttachment{};
     depthAttachment.format = m_depthBuffer.GetFormat();
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -153,30 +134,97 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    m_renderPass.AddAttachment(&depthAttachment);
 
-    VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    m_renderPass.SetSubpassCount(1);
 
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+    m_renderPass.SetSubpassPipelineBindpoint(0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    m_renderPass.AddSubpassColorAttachment(0, 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    m_renderPass.AddSubpassDepthStencilAttachment(0, 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = countof(renderpassAttachments);
-    renderPassInfo.pAttachments = renderpassAttachments;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    m_renderPass.AddSubpassDependency(&dependency);
 
-    if (vkCreateRenderPass(m_renderer->GetDevice(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
+    if (m_renderPass.Initialize() != Graphics::GraphicsError::OK) {
         LOG_ERROR(L"  Failed to create render pass\n");
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
+
+    LOG_INFO(L"Render passes created successfully\n");
+#pragma endregion
+
+#pragma region Pipeline settings
+    LOG_INFO(L"Creating 'Basic' pipeline\n");
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+    m_pipeline.SetDynamicStates(countof(dynamicStates), dynamicStates);
+
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    m_pipeline.SetVertexInput(1, &bindingDescription,
+        static_cast<uint32_t>(attributeDescriptions.size()), attributeDescriptions.data());
+
+    m_pipeline.SetInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    m_pipeline.SetInputPrimitiveRestart(false);
+
+    m_pipeline.SetShaderStage(&m_vertexShader, "main");
+    m_pipeline.SetShaderStage(&m_fragmentShader, "main");
+
+    m_pipeline.SetDescriptorSet(0, &m_perFrameDescriptorSetLayout);
+
+    m_pipeline.SetDepthClampEnable(false);
+    m_pipeline.SetRasterizerDiscardEnable(false);
+    m_pipeline.SetPolygonMode(VK_POLYGON_MODE_FILL);
+    m_pipeline.SetCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    m_pipeline.SetDepthBias(false, 0.0f, 0.0f, 0.0f);
+    m_pipeline.SetLineWidth(1.0f);
+
+    m_pipeline.SetRenderPass(&m_renderPass, 0);
+
+    //TODO: multisampling
+#pragma region Multisampling
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading = 1.0f;
+    multisampling.pSampleMask = nullptr;
+    multisampling.alphaToCoverageEnable = VK_FALSE;
+    multisampling.alphaToOneEnable = VK_FALSE;
+#pragma endregion
+
+    m_pipeline.SetDepthTest(true, true, VK_COMPARE_OP_LESS);
+    m_pipeline.SetDepthBoundsTest(false, 0.0f, 1.0f);
+    m_pipeline.SetStencilTest(false, VkStencilOpState{}, VkStencilOpState{});
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    m_pipeline.SetColorBlendAttachment(0, &colorBlendAttachment);
+    m_pipeline.SetColorBlendLogicOp(false, VK_LOGIC_OP_COPY);
+    m_pipeline.SetColorBlendConstants(0.0f, 0.0f, 0.0f, 0.0f);
+
+    if (m_pipeline.CreatePipeline(nullptr) != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"  Failed to create graphics pipeline\n");
+        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    }
+
+    LOG_INFO(L"Pipeline created successfully\n");
 #pragma endregion
 
 #pragma region Frame buffers (swap chain)
@@ -192,160 +240,6 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
         std::bind(&RendererSceneImpl_Basic::_onCreateSwapChain, this, std::placeholders::_1)
     );
 #pragma endregion
-
-#pragma region Dynamic states
-    std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
-#pragma endregion
-
-#pragma region Viewports/Scissors
-    VkPipelineViewportStateCreateInfo viewportState{};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.scissorCount = 1;
-#pragma endregion
-
-#pragma region Vertex input
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-#pragma endregion
-
-#pragma region Input assembly
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
-#pragma endregion
-
-#pragma region Rasterizer
-    VkPipelineRasterizationStateCreateInfo rasterizer{};
-    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_FALSE;
-    rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f;
-    rasterizer.depthBiasClamp = 0.0f;
-    rasterizer.depthBiasSlopeFactor = 0.0f;
-#pragma endregion
-
-#pragma region Multisampling
-    VkPipelineMultisampleStateCreateInfo multisampling{};
-    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading = 1.0f;
-    multisampling.pSampleMask = nullptr;
-    multisampling.alphaToCoverageEnable = VK_FALSE;
-    multisampling.alphaToOneEnable = VK_FALSE;
-#pragma endregion
-
-#pragma region Color blending
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
-    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f;
-    colorBlending.blendConstants[1] = 0.0f;
-    colorBlending.blendConstants[2] = 0.0f;
-    colorBlending.blendConstants[3] = 0.0f;
-#pragma endregion
-
-#pragma region Pipeline layout
-    //TODO: Move this into shader modules
-    VkDescriptorSetLayoutBinding layoutBindings[] = { {}, {} };
-
-    // UBO
-    layoutBindings[0].binding = 0;
-    layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBindings[0].descriptorCount = 1;
-    layoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutBindings[0].pImmutableSamplers = nullptr;
-
-    // Fragment shader sampler
-    layoutBindings[1].binding = 1;
-    layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutBindings[1].descriptorCount = 1;
-    layoutBindings[1].pImmutableSamplers = nullptr;
-    layoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = countof(layoutBindings);
-    layoutInfo.pBindings = layoutBindings;
-
-    if (vkCreateDescriptorSetLayout(m_renderer->GetDevice(), &layoutInfo, nullptr, &m_vertDescriptorSetLayout) != VK_SUCCESS) {
-        LOG_ERROR(L"  Failed to create descriptor set layout\n");
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &m_vertDescriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;
-
-    if (vkCreatePipelineLayout(m_renderer->GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
-        LOG_ERROR(L"  Failed to create pipeline layout\n");
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-#pragma endregion
-
-#pragma region Pipeline creation
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
-    pipelineInfo.pRasterizationState = &rasterizer;
-    pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = &depthStencilCreateInfo;
-    pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = m_renderPass;
-    pipelineInfo.subpass = 0;
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-    pipelineInfo.basePipelineIndex = -1;
-
-    if (vkCreateGraphicsPipelines(m_renderer->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS) {
-        LOG_ERROR(L"  Failed to create graphics pipeline\n");
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-#pragma endregion
-    LOG_INFO(L"Graphics pipeline successfully created\n");
 
     LOG_INFO(L"Creating descriptor sets\n");
 #pragma region Descriptor sets
@@ -368,7 +262,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
 
-    std::vector<VkDescriptorSetLayout> layouts(FRAMES_IN_FLIGHT, m_vertDescriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(FRAMES_IN_FLIGHT, m_perFrameDescriptorSetLayout.GetVkLayout());
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = m_vertDescriptorPool;
@@ -500,13 +394,11 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
         vkDestroyFence(m_renderer->GetDevice(), fence, VK_NULL_HANDLE);
     }
 
-    vkDestroyPipeline(m_renderer->GetDevice(), m_pipeline, VK_NULL_HANDLE);
-    vkDestroyPipelineLayout(m_renderer->GetDevice(), m_pipelineLayout, VK_NULL_HANDLE);
-    vkDestroyRenderPass(m_renderer->GetDevice(), m_renderPass, VK_NULL_HANDLE);
+    m_pipeline.ClearResources();
+    m_renderPass.ResetResources();
 
     //TODO: Move to shader module
     vkDestroyDescriptorPool(m_renderer->GetDevice(), m_vertDescriptorPool, VK_NULL_HANDLE);
-    vkDestroyDescriptorSetLayout(m_renderer->GetDevice(), m_vertDescriptorSetLayout, VK_NULL_HANDLE);
 
     for (auto framebuffer : m_swapChainFramebuffers) {
         vkDestroyFramebuffer(m_renderer->GetDevice(), framebuffer, VK_NULL_HANDLE);
@@ -567,7 +459,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_renderPass;
+    renderPassInfo.renderPass = m_renderPass.GetVkRenderPass();
     renderPassInfo.framebuffer = m_swapChainFramebuffers[m_curSwapChainImageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swapChain.GetExtents();
@@ -580,7 +472,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
 
     vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipeline());
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -600,7 +492,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex], 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex], m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
-    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_vertDescriptorSets[m_curFrameIndex], 0, nullptr);
+    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_vertDescriptorSets[m_curFrameIndex], 0, nullptr);
 
     //vkCmdDraw(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetVertexCount()), 1, 0, 0);
     vkCmdDrawIndexed(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetIndexCount()), 1, 0, 0, 0);
@@ -687,7 +579,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_onCreateSwapChain(int idx) {
         }
 
         // Recreate depth buffer
-        auto err = m_depthBuffer.Initialize(swapChain.GetExtents().width, swapChain.GetExtents().height);
+        auto err = m_depthBuffer.Initialize(swapChain.GetExtents().width, swapChain.GetExtents().height, VK_FORMAT_D32_SFLOAT);
         if (err != Graphics::GraphicsError::OK) {
             return err;
         }
@@ -723,7 +615,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::_createSwapChainFrameBuffers(Vu
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = m_renderPass;
+        framebufferInfo.renderPass = m_renderPass.GetVkRenderPass();
         framebufferInfo.attachmentCount = countof(attachments);
         framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = swapChain.GetExtents().width;

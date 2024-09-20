@@ -14,7 +14,7 @@ public:
     VulkanDepthStencilBuffer &operator=(VulkanDepthStencilBuffer const &) = delete;
     ~VulkanDepthStencilBuffer();
 
-    Graphics::GraphicsError Initialize(uint32_t width, uint32_t height);
+    Graphics::GraphicsError Initialize(uint32_t width, uint32_t height, VkFormat desiredFormat);
 
     VkFormat GetFormat() const;
     bool HasStencilComponent() const;
