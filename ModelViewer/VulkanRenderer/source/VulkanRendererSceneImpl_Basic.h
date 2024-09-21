@@ -80,17 +80,13 @@ private:
 
     FrameBufferArray m_swapChainFramebuffers;
 
-    //TODO: Move into shader modules
     size_t m_curFrameIndex;
     uint32_t m_curSwapChainImageIndex;
 
-    typedef std::vector<VkCommandBuffer> CommandBufferArray;
     typedef std::vector<VkSemaphore> SemaphoreArray;
-    typedef std::vector<VkFence> FenceArray;
-    CommandBufferArray m_commandBuffers;
+    VulkanCommandBuffer *m_commandBuffers[FRAMES_IN_FLIGHT];
     SemaphoreArray m_swapChainSemaphores;
     SemaphoreArray m_renderFinishedSemaphores;
-    FenceArray m_renderFinishedFences;
 
     f64 m_accumulatedTime;
 };

@@ -54,6 +54,7 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
     m_perFrameDescriptorPool{},
     m_curFrameIndex(0),
     m_curSwapChainImageIndex(0),
+    m_commandBuffers{},
     m_accumulatedTime(0.0) {
     ASSERT(parentRenderer);
 }
@@ -303,10 +304,15 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
     LOG_INFO(L"Allocating main command buffers\n");
 #pragma region Command buffers
-    m_commandBuffers.resize(FRAMES_IN_FLIGHT);
-    if (m_renderer->AllocateCommandBuffers(RendererImpl::QUEUE_GRAPHICS, VK_COMMAND_BUFFER_LEVEL_PRIMARY, FRAMES_IN_FLIGHT, m_commandBuffers.data()) != Graphics::GraphicsError::OK) {
-        LOG_ERROR(L"  Failed to allocate command buffers\n");
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
+    for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+        m_commandBuffers[i] = new VulkanCommandBuffer(m_renderer);
+        m_commandBuffers[i]->SetSingleUse(false);
+        m_commandBuffers[i]->SetLevel(VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        m_commandBuffers[i]->SetWaitFence(true, VK_NULL_HANDLE, VK_FENCE_CREATE_SIGNALED_BIT);
+        if (m_commandBuffers[i]->Initialize(RendererImpl::QUEUE_GRAPHICS, VK_NULL_HANDLE)  != Graphics::GraphicsError::OK) {
+            LOG_ERROR(L"  Failed to allocate command buffers\n");
+            return Graphics::GraphicsError::INITIALIZATION_FAILED;
+        }
     }
 #pragma endregion
     LOG_INFO(L"Command buffers successfully allocated\n");
@@ -315,19 +321,13 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 #pragma region Sync objects
     m_swapChainSemaphores.resize(FRAMES_IN_FLIGHT);
     m_renderFinishedSemaphores.resize(FRAMES_IN_FLIGHT);
-    m_renderFinishedFences.resize(FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    VkFenceCreateInfo fenceInfo{};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
     for (int i = 0; i < FRAMES_IN_FLIGHT; ++i) {
         if (vkCreateSemaphore(m_renderer->GetDevice(), &semaphoreInfo, VK_NULL_HANDLE, &m_swapChainSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(m_renderer->GetDevice(), &semaphoreInfo, VK_NULL_HANDLE, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(m_renderer->GetDevice(), &fenceInfo, VK_NULL_HANDLE, &m_renderFinishedFences[i]) != VK_SUCCESS) {
+            vkCreateSemaphore(m_renderer->GetDevice(), &semaphoreInfo, VK_NULL_HANDLE, &m_renderFinishedSemaphores[i]) != VK_SUCCESS) {
             LOG_ERROR(L"  Failed to create semaphores\n");
             return Graphics::GraphicsError::INITIALIZATION_FAILED;
         }
@@ -341,15 +341,14 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
     vkDeviceWaitIdle(m_renderer->GetDevice());
 
-    vkFreeCommandBuffers(m_renderer->GetDevice(), m_renderer->m_commandPools[RendererImpl::QUEUE_GRAPHICS], static_cast<uint32_t>(m_commandBuffers.size()), m_commandBuffers.data());
+    for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+        delete m_commandBuffers[i];
+    }
     for (auto &semaphore : m_swapChainSemaphores) {
         vkDestroySemaphore(m_renderer->GetDevice(), semaphore, VK_NULL_HANDLE);
     }
     for (auto &semaphore : m_renderFinishedSemaphores) {
         vkDestroySemaphore(m_renderer->GetDevice(), semaphore, VK_NULL_HANDLE);
-    }
-    for (auto &fence : m_renderFinishedFences) {
-        vkDestroyFence(m_renderer->GetDevice(), fence, VK_NULL_HANDLE);
     }
 
     m_pipeline.ClearResources();
@@ -395,7 +394,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
 Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     // Acquire swap chain image
     // Make sure that the frame we're about to use is not still busy
-    vkWaitForFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkWaitForFences(m_renderer->GetDevice(), 1, &m_commandBuffers[m_curFrameIndex]->GetWaitFence(), VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     // Reset and allocate descriptor sets
     m_perFrameDescriptorPool[m_curFrameIndex]->Reset();
@@ -411,15 +410,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     }
 
     // Reset command buffer and prepare it for rendering
-    vkResetCommandBuffer(m_commandBuffers[m_curFrameIndex], 0);
+    m_commandBuffers[m_curFrameIndex]->ResetCommandBuffer(0);
 
     // Draw object
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;
-    beginInfo.pInheritanceInfo = nullptr;
-
-    if (vkBeginCommandBuffer(m_commandBuffers[m_curFrameIndex], &beginInfo) != VK_SUCCESS) {
+    if (m_commandBuffers[m_curFrameIndex]->BeginCommandBuffer() != Graphics::GraphicsError::OK) {
         return Graphics::GraphicsError::QUEUE_ERROR;
     }
 
@@ -436,9 +430,9 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     renderPassInfo.clearValueCount = countof(clearColors);
     renderPassInfo.pClearValues = clearColors;
 
-    vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipeline());
+    vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipeline());
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -447,45 +441,32 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     viewport.height = -static_cast<float>(swapChain.GetExtents().height); // Negative height to flip y-axis
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(m_commandBuffers[m_curFrameIndex], 0, 1, &viewport);
+    vkCmdSetViewport(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), 0, 1, &viewport);
 
     VkRect2D scissors{};
     scissors.extent.width = swapChain.GetExtents().width;
     scissors.extent.height = swapChain.GetExtents().height;
-    vkCmdSetScissor(m_commandBuffers[m_curFrameIndex], 0, 1, &scissors);
+    vkCmdSetScissor(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), 0, 1, &scissors);
 
     VkBuffer vertexBuffers[] = { m_testRenderObject.GetVertexDeviceBuffer()};
     VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex], 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex], m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
-    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_descriptorSet[m_curFrameIndex]->GetVkDescriptorSet(), 0, nullptr);
+    vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_descriptorSet[m_curFrameIndex]->GetVkDescriptorSet(), 0, nullptr);
 
     //vkCmdDraw(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetVertexCount()), 1, 0, 0);
-    vkCmdDrawIndexed(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetIndexCount()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), static_cast<uint32_t>(m_testRenderObject.GetIndexCount()), 1, 0, 0, 0);
 
-    vkCmdEndRenderPass(m_commandBuffers[m_curFrameIndex]);
+    vkCmdEndRenderPass(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer());
 
-    if (vkEndCommandBuffer(m_commandBuffers[m_curFrameIndex]) != VK_SUCCESS) {
+    if (m_commandBuffers[m_curFrameIndex]->EndCommandBuffer() != Graphics::GraphicsError::OK) {
         return Graphics::GraphicsError::QUEUE_ERROR;
     }
 
     // Submit the command buffer
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &m_swapChainSemaphores[m_curFrameIndex];
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers[m_curFrameIndex];
-    VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_curFrameIndex] };
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    vkResetFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex]);
-
-    if (vkQueueSubmit(m_renderer->m_queues[RendererImpl::QUEUE_GRAPHICS], 1, &submitInfo, m_renderFinishedFences[m_curFrameIndex]) != VK_SUCCESS) {
+    m_commandBuffers[m_curFrameIndex]->AddWaitSemaphore(m_swapChainSemaphores[m_curFrameIndex], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+    m_commandBuffers[m_curFrameIndex]->AddSignalSemaphore(m_renderFinishedSemaphores[m_curFrameIndex]);
+    if (m_commandBuffers[m_curFrameIndex]->Submit() != Graphics::GraphicsError::OK) {
         return Graphics::GraphicsError::QUEUE_ERROR;
     }
 

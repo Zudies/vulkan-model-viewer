@@ -25,7 +25,8 @@ public:
     // If useFence is true, Submit() will include a fence that can be waited on
     // If useFence is true and the provided fence is a null pointer, then the command buffer will maintain its own fence
     // If Submit() is not called, then the fence will not be automatically signaled
-    void SetWaitFence(bool useFence, VkFence fence);
+    // fenceFlags is used when creating fence only if fence is null
+    void SetWaitFence(bool useFence, VkFence fence, VkFenceCreateFlags fenceFlags = 0);
 
     // Passing null pointer will cause this to maintain its own command buffer internally
     // queue must be of value QueueType
@@ -46,16 +47,18 @@ public:
     // Any other desired flag should be passed through flags
     Graphics::GraphicsError BeginCommandBuffer(VkCommandBufferUsageFlagBits flags = static_cast<VkCommandBufferUsageFlagBits>(0));
     Graphics::GraphicsError EndCommandBuffer();
+    Graphics::GraphicsError ResetCommandBuffer(VkCommandBufferResetFlags flags);
     void ResetWaitFence();
 
     VkCommandBuffer GetVkCommandBuffer() const;
-    VkFence GetWaitFence() const;
+    const VkFence &GetWaitFence() const;
     uint32_t GetQueue() const;
 
 private:
     RendererImpl *m_renderer;
     VkCommandBuffer m_commandBuffer;
     VkFence m_fence;
+    VkFenceCreateFlags m_fenceCreateFlags;
 
     std::vector<VkSemaphore> *m_waitSemaphores;
     std::vector<VkPipelineStageFlags> *m_waitSemaphoreStages;

@@ -21,6 +21,7 @@ RendererImpl::RendererImpl()
     m_queueIndices{},
     m_queues{},
     m_commandPools{},
+    m_transferCommandPools{},
     m_swapChainOutOfDate(0),
     m_useValidation(false) {
 }

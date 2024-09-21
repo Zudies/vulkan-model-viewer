@@ -15,6 +15,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(RendererImpl *renderer)
   : m_renderer(renderer),
     m_commandBuffer(VK_NULL_HANDLE), 
     m_fence(VK_NULL_HANDLE),
+    m_fenceCreateFlags(0),
     m_waitSemaphores(nullptr),
     m_waitSemaphoreStages(nullptr),
     m_signalSemaphores(nullptr),
@@ -36,6 +37,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer &&other) noexcept
   : m_renderer(other.m_renderer),
     m_commandBuffer(other.m_commandBuffer),
     m_fence(other.m_fence),
+    m_fenceCreateFlags(other.m_fenceCreateFlags),
     m_waitSemaphores(other.m_waitSemaphores),
     m_waitSemaphoreStages(other.m_waitSemaphoreStages),
     m_signalSemaphores(other.m_signalSemaphores),
@@ -52,6 +54,7 @@ VulkanCommandBuffer &VulkanCommandBuffer::operator=(VulkanCommandBuffer &&other)
     m_renderer = other.m_renderer;
     m_commandBuffer = other.m_commandBuffer;
     m_fence = other.m_fence;
+    m_fenceCreateFlags = other.m_fenceCreateFlags;
     m_waitSemaphores = other.m_waitSemaphores;
     m_waitSemaphoreStages = other.m_waitSemaphoreStages;
     m_signalSemaphores = other.m_signalSemaphores;
@@ -74,7 +77,7 @@ void VulkanCommandBuffer::SetLevel(VkCommandBufferLevel level) {
     m_flags.SetFlag(COMMAND_BUFFER_IS_SECONDARY_BUFFER, level & VK_COMMAND_BUFFER_LEVEL_SECONDARY);
 }
 
-void VulkanCommandBuffer::SetWaitFence(bool useFence, VkFence fence) {
+void VulkanCommandBuffer::SetWaitFence(bool useFence, VkFence fence, VkFenceCreateFlags fenceFlags) {
     if (useFence) {
         if (fence) {
             // Clear own fence if needed
@@ -86,6 +89,7 @@ void VulkanCommandBuffer::SetWaitFence(bool useFence, VkFence fence) {
         }
         else {
             // Create fence if we don't already own one
+            m_fenceCreateFlags = fenceFlags;
             if (!m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) || !m_fence) {
                 m_flags.SetFlag(COMMAND_BUFFER_OWNS_FENCE);
                 m_fence = VK_NULL_HANDLE; // Fence creation will happen in Initialize()
@@ -129,6 +133,7 @@ Graphics::GraphicsError VulkanCommandBuffer::Initialize(uint32_t queue, VkComman
     if (m_flags.GetFlag(COMMAND_BUFFER_OWNS_FENCE) && !m_fence) {
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = m_fenceCreateFlags;
         if (vkCreateFence(m_renderer->GetDevice(), &fenceInfo, VK_NULL_HANDLE, &m_fence) != VK_SUCCESS) {
             Clear();
             return Graphics::GraphicsError::INITIALIZATION_FAILED;
@@ -227,6 +232,18 @@ Graphics::GraphicsError VulkanCommandBuffer::EndCommandBuffer() {
     return Graphics::GraphicsError::OK;
 }
 
+Graphics::GraphicsError VulkanCommandBuffer::ResetCommandBuffer(VkCommandBufferResetFlags flags) {
+    vkResetCommandBuffer(m_commandBuffer, flags);
+    if (m_waitSemaphores) {
+        m_waitSemaphores->clear();
+        m_waitSemaphoreStages->clear();
+    }
+    if (m_signalSemaphores) {
+        m_signalSemaphores->clear();
+    }
+    return Graphics::GraphicsError::OK;
+}
+
 void VulkanCommandBuffer::ResetWaitFence() {
     if (m_fence) {
         vkResetFences(m_renderer->GetDevice(), 1, &m_fence);
@@ -237,7 +254,7 @@ VkCommandBuffer VulkanCommandBuffer::GetVkCommandBuffer() const {
     return m_commandBuffer;
 }
 
-VkFence VulkanCommandBuffer::GetWaitFence() const {
+const VkFence &VulkanCommandBuffer::GetWaitFence() const {
     return m_fence;
 }
 
