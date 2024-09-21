@@ -278,14 +278,14 @@ Graphics::GraphicsError VulkanPipeline::CreatePipeline(VkPipeline *out) {
             }
         }
 
-        VkPipelineLayoutCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        createInfo.setLayoutCount = layoutCount;
-        createInfo.pSetLayouts = m_descriptorSetLayouts.data();
-        createInfo.pushConstantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size());
-        createInfo.pPushConstantRanges = m_pushConstantRanges.data();
+        VkPipelineLayoutCreateInfo layoutCreateInfo{};
+        layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        layoutCreateInfo.setLayoutCount = layoutCount;
+        layoutCreateInfo.pSetLayouts = m_descriptorSetLayouts.data();
+        layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(m_pushConstantRanges.size());
+        layoutCreateInfo.pPushConstantRanges = m_pushConstantRanges.data();
 
-        if (vkCreatePipelineLayout(m_renderer->GetDevice(), &createInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(m_renderer->GetDevice(), &layoutCreateInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS) {
             return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
         }
 

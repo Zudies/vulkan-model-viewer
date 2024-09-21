@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "VulkanRendererSceneImpl_Basic.h"
 #include "VulkanRendererImpl.h"
+#include "VulkanDescriptorSetInstance.h"
 
 #include "VulkanPipeline.h"
 #include "glm/gtc/matrix_transform.hpp"
@@ -40,6 +41,8 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
   : m_testRenderObject(parentRenderer),
     m_testTexture(parentRenderer),
     m_testSampler(parentRenderer),
+    m_ubo(parentRenderer),
+    m_descriptorSet{},
     m_renderer(parentRenderer),
     m_vertexShader(parentRenderer),
     m_fragmentShader(parentRenderer),
@@ -47,8 +50,8 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
     m_perFrameDescriptorSetLayout(parentRenderer),
     m_pipeline(parentRenderer),
     m_depthBuffer(parentRenderer),
-    m_vertDescriptorPool(VK_NULL_HANDLE),
-    m_ubo(parentRenderer),
+    m_persistentDescriptorPool(parentRenderer),
+    m_perFrameDescriptorPool{},
     m_curFrameIndex(0),
     m_curSwapChainImageIndex(0),
     m_accumulatedTime(0.0) {
@@ -67,6 +70,40 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
         return Graphics::GraphicsError::INITIALIZATION_FAILED;
     }
     auto &swapChain = m_renderer->m_swapchains[0];
+
+#pragma region Scene object creation
+    //TODO: Move object initialization elsewhere
+    m_testTexture.LoadImageFromFile("resources/texture.jpg");
+    m_testTexture.FlushTextureToDevice();
+    m_testTexture.ClearHostResources();
+    m_testSampler.Initialize();
+
+    m_ubo.Initialize(sizeof(UBO), FRAMES_IN_FLIGHT);
+
+    m_testRenderObject.SetVertexCount(8);
+    Vertex *vertexData = reinterpret_cast<Vertex *>(m_testRenderObject.GetVertexData());
+    m_testRenderObject.SetIndexCount(12);
+    uint16_t *indexData = reinterpret_cast<uint16_t *>(m_testRenderObject.GetIndexData());
+
+    vertexData[0] = { {-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} };
+    vertexData[1] = { {0.5f, -0.5f, 0.0f}, { 0.0f, 1.0f, 0.0f }, {0.0f, 0.0f} };
+    vertexData[2] = { {0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} };
+    vertexData[3] = { {-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} };
+
+    vertexData[4] = { {-0.5f, -0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } };
+    vertexData[5] = { {0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} };
+    vertexData[6] = { {0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} };
+    vertexData[7] = { {-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} };
+
+    indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
+    indexData[3] = 2; indexData[4] = 3; indexData[5] = 0;
+
+    indexData[6] = 4; indexData[7] = 5; indexData[8] = 6;
+    indexData[9] = 6; indexData[10] = 7; indexData[11] = 4;
+
+    m_testRenderObject.FlushVertexToDevice();
+    m_testRenderObject.FlushIndexToDevice();
+#pragma endregion
 
 #pragma region Shader modules
     LOG_INFO(L"Loading shaders\n");
@@ -96,7 +133,30 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
         return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
     }
 
-    //TODO: Create the sets themselves
+    m_persistentDescriptorPool.Initialize();
+
+    // Create descriptor pools and descriptor sets for each frame in flight
+    for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+        m_descriptorSet[i] = new VulkanDescriptorSetInstance(m_renderer);
+        m_descriptorSet[i]->SetDescriptorSetLayout(&m_perFrameDescriptorSetLayout);
+
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_ubo.GetDeviceBuffer(i);
+        bufferInfo.offset = 0;
+        bufferInfo.range = VK_WHOLE_SIZE;
+        m_descriptorSet[i]->UpdateDescriptorWrite(0, &bufferInfo);
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = m_testTexture.GetDeviceImageView();
+        imageInfo.sampler = m_testSampler.GetVkSampler();
+        m_descriptorSet[i]->UpdateDescriptorWrite(1, &imageInfo);
+
+        m_perFrameDescriptorPool[i] = new VulkanDescriptorSetAllocator(m_renderer);
+        m_perFrameDescriptorPool[i]->AddDescriptorLayout(&m_perFrameDescriptorSetLayout, 1);
+        m_perFrameDescriptorPool[i]->Initialize();
+    }
+
     LOG_INFO(L"Descriptor sets created successfully\n");
 #pragma endregion
 
@@ -241,79 +301,6 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     );
 #pragma endregion
 
-    LOG_INFO(L"Creating descriptor sets\n");
-#pragma region Descriptor sets
-    m_ubo.Initialize(sizeof(UBO), FRAMES_IN_FLIGHT);
-
-    VkDescriptorPoolSize poolSize[] = { {}, {} };
-    poolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize[0].descriptorCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
-    poolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize[1].descriptorCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
-
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = countof(poolSize);
-    poolInfo.pPoolSizes = poolSize;
-    poolInfo.maxSets = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
-
-    if (vkCreateDescriptorPool(m_renderer->GetDevice(), &poolInfo, nullptr, &m_vertDescriptorPool) != VK_SUCCESS) {
-        LOG_ERROR(L"  Failed to create descriptor pool\n");
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-
-    std::vector<VkDescriptorSetLayout> layouts(FRAMES_IN_FLIGHT, m_perFrameDescriptorSetLayout.GetVkLayout());
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = m_vertDescriptorPool;
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(FRAMES_IN_FLIGHT);
-    allocInfo.pSetLayouts = layouts.data();
-
-    m_vertDescriptorSets.resize(FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(m_renderer->GetDevice(), &allocInfo, m_vertDescriptorSets.data()) != VK_SUCCESS) {
-        LOG_ERROR(L"  Failed to create descriptor sets\n");
-        return Graphics::GraphicsError::INITIALIZATION_FAILED;
-    }
-
-    //TODO: Move object initialization elsewhere
-    m_testTexture.LoadImageFromFile("resources/texture.jpg");
-    m_testTexture.FlushTextureToDevice();
-    m_testTexture.ClearHostResources();
-    m_testSampler.Initialize();
-
-    for (size_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_ubo.GetDeviceBuffer(i);
-        bufferInfo.offset = 0;
-        bufferInfo.range = VK_WHOLE_SIZE;
-
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = m_testTexture.GetDeviceImageView();
-        imageInfo.sampler = m_testSampler.GetVkSampler();
-
-        VkWriteDescriptorSet descriptorWrite[] = { {}, {} };
-        descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite[0].dstSet = m_vertDescriptorSets[i];
-        descriptorWrite[0].dstBinding = 0;
-        descriptorWrite[0].dstArrayElement = 0;
-        descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite[0].descriptorCount = 1;
-        descriptorWrite[0].pBufferInfo = &bufferInfo;
-
-        descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite[1].dstSet = m_vertDescriptorSets[i];
-        descriptorWrite[1].dstBinding = 1;
-        descriptorWrite[1].dstArrayElement = 0;
-        descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrite[1].descriptorCount = 1;
-        descriptorWrite[1].pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_renderer->GetDevice(), countof(descriptorWrite), descriptorWrite, 0, nullptr);
-    }
-#pragma endregion
-    LOG_INFO(L"Descriptor sets successfully created\n");
-
     LOG_INFO(L"Allocating main command buffers\n");
 #pragma region Command buffers
     m_commandBuffers.resize(FRAMES_IN_FLIGHT);
@@ -345,37 +332,8 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
             return Graphics::GraphicsError::INITIALIZATION_FAILED;
         }
     }
-
 #pragma endregion
     LOG_INFO(L"Sync objects successfully created\n");
-
-    LOG_INFO(L"Creating scene objects\n");
-#pragma region Scene objects
-    m_testRenderObject.SetVertexCount(8);
-    Vertex *vertexData = reinterpret_cast<Vertex*>(m_testRenderObject.GetVertexData());
-    m_testRenderObject.SetIndexCount(12);
-    uint16_t *indexData = reinterpret_cast<uint16_t*>(m_testRenderObject.GetIndexData());
-
-    vertexData[0] = { {-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} };
-    vertexData[1] = { {0.5f, -0.5f, 0.0f}, { 0.0f, 1.0f, 0.0f }, {0.0f, 0.0f} };
-    vertexData[2] = { {0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} };
-    vertexData[3] = { {-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} };
-
-    vertexData[4] = { {-0.5f, -0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } };
-    vertexData[5] = { {0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} };
-    vertexData[6] = { {0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} };
-    vertexData[7] = { {-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} };
-
-    indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
-    indexData[3] = 2; indexData[4] = 3; indexData[5] = 0;
-
-    indexData[6] = 4; indexData[7] = 5; indexData[8] = 6;
-    indexData[9] = 6; indexData[10] = 7; indexData[11] = 4;
-
-    m_testRenderObject.FlushVertexToDevice();
-    m_testRenderObject.FlushIndexToDevice();
-#pragma endregion
-    LOG_INFO(L"Scene objects successfully created\n");
 
     return Graphics::GraphicsError::OK;
 }
@@ -397,8 +355,12 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
     m_pipeline.ClearResources();
     m_renderPass.ResetResources();
 
-    //TODO: Move to shader module
-    vkDestroyDescriptorPool(m_renderer->GetDevice(), m_vertDescriptorPool, VK_NULL_HANDLE);
+    for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+        delete m_descriptorSet[i];
+        m_descriptorSet[i] = nullptr;
+        delete m_perFrameDescriptorPool[i];
+        m_perFrameDescriptorPool[i] = nullptr;
+    }
 
     for (auto framebuffer : m_swapChainFramebuffers) {
         vkDestroyFramebuffer(m_renderer->GetDevice(), framebuffer, VK_NULL_HANDLE);
@@ -434,6 +396,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     // Acquire swap chain image
     // Make sure that the frame we're about to use is not still busy
     vkWaitForFences(m_renderer->GetDevice(), 1, &m_renderFinishedFences[m_curFrameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+    // Reset and allocate descriptor sets
+    m_perFrameDescriptorPool[m_curFrameIndex]->Reset();
+    m_perFrameDescriptorPool[m_curFrameIndex]->AllocateDescriptorSet(1, m_descriptorSet[m_curFrameIndex]);
 
     auto &swapChain = m_renderer->m_swapchains[0];
     auto err = m_renderer->AcquireNextSwapChainImage(0, std::numeric_limits<uint64_t>::max(), m_swapChainSemaphores[m_curFrameIndex], VK_NULL_HANDLE, &m_curSwapChainImageIndex);
@@ -492,7 +458,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex], 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex], m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
-    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_vertDescriptorSets[m_curFrameIndex], 0, nullptr);
+    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_descriptorSet[m_curFrameIndex]->GetVkDescriptorSet(), 0, nullptr);
 
     //vkCmdDraw(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetVertexCount()), 1, 0, 0);
     vkCmdDrawIndexed(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetIndexCount()), 1, 0, 0, 0);

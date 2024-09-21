@@ -6,6 +6,11 @@ class RendererImpl;
 
 class VulkanDescriptorSetLayout {
 public:
+    typedef std::array<uint8_t, 16> KeyType;
+    typedef std::vector<VkDescriptorPoolSize> MemoryRequirements;
+    typedef std::vector<VkDescriptorSetLayoutBinding> BindingsArray;
+
+public:
 
     VulkanDescriptorSetLayout(RendererImpl *renderer);
     VulkanDescriptorSetLayout(VulkanDescriptorSetLayout const &) = delete;
@@ -22,12 +27,21 @@ public:
     Graphics::GraphicsError Initialize();
 
     VkDescriptorSetLayout GetVkLayout() const;
+    const KeyType &GetLayoutKey() const;
+    const MemoryRequirements &GetMemoryRequirements() const;
+    const BindingsArray &GetBindings() const;
+
+private:
+    int _descriptorTypeToKeyIndex(VkDescriptorType descriptorType);
 
 private:
     RendererImpl *m_renderer;
     VkDescriptorSetLayout m_vkLayout;
 
-    std::vector<VkDescriptorSetLayoutBinding> m_bindings;
+    BindingsArray m_bindings;
+    KeyType m_key;
+    MemoryRequirements m_memoryRequirements;
+
 };
 
 } // namespace Vulkan

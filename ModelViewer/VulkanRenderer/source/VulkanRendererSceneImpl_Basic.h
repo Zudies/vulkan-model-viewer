@@ -4,6 +4,8 @@
 #include "VulkanShaderModule.h"
 #include "VulkanVertexBuffer.h"
 #include "VulkanDescriptorSetLayout.h"
+#include "VulkanDescriptorSetInstance.h"
+#include "VulkanDescriptorSetAllocator.h"
 #include "VulkanPipeline.h"
 #include "VulkanUniformBufferObject.h"
 #include "Vulkan2DTextureBuffer.h"
@@ -20,6 +22,8 @@ class RendererImpl;
 class VulkanSwapChain;
 
 class RendererSceneImpl_Basic {
+    static const size_t FRAMES_IN_FLIGHT = 3;
+
 public:
     RendererSceneImpl_Basic(RendererImpl *parentRenderer);
     ~RendererSceneImpl_Basic();
@@ -55,8 +59,10 @@ private:
     Vulkan2DTextureBuffer m_testTexture;
     VulkanSampler m_testSampler;
 
+    VulkanUniformBufferObject m_ubo;
+    VulkanDescriptorSetInstance *m_descriptorSet[FRAMES_IN_FLIGHT];
+
 private:
-    static const size_t FRAMES_IN_FLIGHT = 3;
 
     RendererImpl *m_renderer;
 
@@ -67,14 +73,14 @@ private:
     VulkanRenderPass m_renderPass;
     VulkanDescriptorSetLayout m_perFrameDescriptorSetLayout;
     VulkanPipeline m_pipeline;
-    FrameBufferArray m_swapChainFramebuffers;
     VulkanDepthStencilBuffer m_depthBuffer;
 
+    VulkanDescriptorSetAllocator m_persistentDescriptorPool;
+    VulkanDescriptorSetAllocator *m_perFrameDescriptorPool[FRAMES_IN_FLIGHT];
+
+    FrameBufferArray m_swapChainFramebuffers;
+
     //TODO: Move into shader modules
-    typedef std::vector<VkDescriptorSet> DescriptorSetArray;
-    VkDescriptorPool m_vertDescriptorPool;
-    DescriptorSetArray m_vertDescriptorSets;
-    VulkanUniformBufferObject m_ubo;
     size_t m_curFrameIndex;
     uint32_t m_curSwapChainImageIndex;
 

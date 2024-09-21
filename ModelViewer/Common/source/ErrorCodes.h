@@ -51,6 +51,9 @@ enum class GraphicsError {
     // Failed to create a render pass
     RENDERPASS_CREATE_ERROR,
 
+    // Failed to create a descriptor pool
+    DESCRIPTOR_POOL_CREATE_ERROR,
+
     // Failed to create a descriptor set or descriptor set layout
     DESCRIPTOR_SET_CREATE_ERROR,
 
