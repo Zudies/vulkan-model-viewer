@@ -74,6 +74,12 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
 #pragma region Scene object creation
     //TODO: Move object initialization elsewhere
+    m_camera.SetPosition(0.0f, 2.0f, -2.0f);
+    m_camera.LookAt(0.0f, 0.0f, 0.0f);
+    m_camera.SetVerticalFOVDeg(90.0f);
+    m_camera.SetAspectRatio(static_cast<f32>(swapChain.GetExtents().width), static_cast<f32>(swapChain.GetExtents().height));
+    m_camera.SetNearFarPlanes(0.1f, 10.0f);
+
     m_testTexture.LoadImageFromFile("resources/texture.jpg");
     m_testTexture.FlushTextureToDevice();
     m_testTexture.ClearHostResources();
@@ -86,15 +92,15 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     m_testRenderObject.SetIndexCount(12);
     uint16_t *indexData = reinterpret_cast<uint16_t *>(m_testRenderObject.GetIndexData());
 
-    vertexData[0] = { {-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} };
-    vertexData[1] = { {0.5f, -0.5f, 0.0f}, { 0.0f, 1.0f, 0.0f }, {0.0f, 0.0f} };
-    vertexData[2] = { {0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} };
-    vertexData[3] = { {-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} };
+    vertexData[0] = { {-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f} };
+    vertexData[1] = { {0.5f, 0.0f, -0.5f}, { 0.0f, 1.0f, 0.0f }, {1.0f, 1.0f} };
+    vertexData[2] = { {0.5f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f} };
+    vertexData[3] = { {-0.5f, 0.0f, 0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f} };
 
-    vertexData[4] = { {-0.5f, -0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } };
-    vertexData[5] = { {0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} };
-    vertexData[6] = { {0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} };
-    vertexData[7] = { {-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} };
+    vertexData[4] = { {-0.5f, -0.5f, -0.5f}, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } };
+    vertexData[5] = { {0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f} };
+    vertexData[6] = { {0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f} };
+    vertexData[7] = { {-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f} };
 
     indexData[0] = 0; indexData[1] = 1; indexData[2] = 2;
     indexData[3] = 2; indexData[4] = 3; indexData[5] = 0;
@@ -380,10 +386,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
     // Update UBO
     UBO ubo;
     ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f))
-                * glm::rotate(glm::mat4(1.0f), static_cast<float>(m_accumulatedTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f))
+                * glm::rotate(glm::mat4(1.0f), static_cast<float>(m_accumulatedTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f))
                 * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(90.0f), swapChain.GetExtents().width / static_cast<float>(swapChain.GetExtents().height), 0.1f, 10.0f);
+    ubo.view = m_camera.ViewMatrix();
+    ubo.proj = m_camera.ProjectionMatrix();
 
     uint8_t *data = reinterpret_cast<uint8_t*>(m_ubo.GetMappedMemory(m_curFrameIndex));
     memcpy(data, &ubo, sizeof(UBO));

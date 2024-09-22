@@ -11,6 +11,7 @@
 #include "Vulkan2DTextureBuffer.h"
 #include "VulkanSampler.h"
 #include "VulkanDepthStencilBuffer.h"
+#include "Camera.h"
 
 namespace Graphics {
 class Renderer_Base;
@@ -58,6 +59,8 @@ private:
     BasicObject m_testRenderObject;
     Vulkan2DTextureBuffer m_testTexture;
     VulkanSampler m_testSampler;
+
+    Graphics::Camera m_camera;
 
     VulkanUniformBufferObject m_ubo;
     VulkanDescriptorSetInstance *m_descriptorSet[FRAMES_IN_FLIGHT];

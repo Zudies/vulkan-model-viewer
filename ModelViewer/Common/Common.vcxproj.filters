@@ -77,6 +77,9 @@
     <ClInclude Include="source\BitFlag.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\Camera.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -125,6 +128,9 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\ImageLoader.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Camera.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>
