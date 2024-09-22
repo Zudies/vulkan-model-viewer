@@ -51,19 +51,15 @@ private:
         static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
     };
     struct UBO {
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
+        glm::mat4 viewProj;
     };
     typedef VulkanVertexBuffer<Vertex> BasicObject;
     BasicObject m_testRenderObject;
     Vulkan2DTextureBuffer m_testTexture;
     VulkanSampler m_testSampler;
 
-    Graphics::Camera m_camera;
-
-    VulkanUniformBufferObject m_ubo;
-    VulkanDescriptorSetInstance *m_descriptorSet[FRAMES_IN_FLIGHT];
+    VulkanDescriptorSetLayout m_testObjectDescriptorLayout;
+    VulkanDescriptorSetInstance *m_testObjectDescriptorSet[FRAMES_IN_FLIGHT];
 
 private:
 
@@ -74,9 +70,13 @@ private:
     VulkanShaderModule m_vertexShader;
     VulkanShaderModule m_fragmentShader;
     VulkanRenderPass m_renderPass;
-    VulkanDescriptorSetLayout m_perFrameDescriptorSetLayout;
     VulkanPipeline m_pipeline;
     VulkanDepthStencilBuffer m_depthBuffer;
+
+    Graphics::Camera m_camera;
+    VulkanDescriptorSetLayout m_perFrameDescriptorSetLayout;
+    VulkanUniformBufferObject m_perFrameUbo;
+    VulkanDescriptorSetInstance *m_perFrameDescriptorSet[FRAMES_IN_FLIGHT];
 
     VulkanDescriptorSetAllocator m_persistentDescriptorPool;
     VulkanDescriptorSetAllocator *m_perFrameDescriptorPool[FRAMES_IN_FLIGHT];

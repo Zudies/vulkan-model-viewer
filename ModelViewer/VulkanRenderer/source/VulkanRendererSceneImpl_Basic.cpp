@@ -41,15 +41,17 @@ RendererSceneImpl_Basic::RendererSceneImpl_Basic(RendererImpl *parentRenderer)
   : m_testRenderObject(parentRenderer),
     m_testTexture(parentRenderer),
     m_testSampler(parentRenderer),
-    m_ubo(parentRenderer),
-    m_descriptorSet{},
+    m_testObjectDescriptorLayout(parentRenderer),
+    m_testObjectDescriptorSet{},
     m_renderer(parentRenderer),
     m_vertexShader(parentRenderer),
     m_fragmentShader(parentRenderer),
     m_renderPass(parentRenderer),
-    m_perFrameDescriptorSetLayout(parentRenderer),
     m_pipeline(parentRenderer),
     m_depthBuffer(parentRenderer),
+    m_perFrameDescriptorSetLayout(parentRenderer),
+    m_perFrameUbo(parentRenderer),
+    m_perFrameDescriptorSet{},
     m_persistentDescriptorPool(parentRenderer),
     m_perFrameDescriptorPool{},
     m_curFrameIndex(0),
@@ -85,7 +87,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     m_testTexture.ClearHostResources();
     m_testSampler.Initialize();
 
-    m_ubo.Initialize(sizeof(UBO), FRAMES_IN_FLIGHT);
+    m_perFrameUbo.Initialize(sizeof(UBO), FRAMES_IN_FLIGHT);
 
     m_testRenderObject.SetVertexCount(8);
     Vertex *vertexData = reinterpret_cast<Vertex *>(m_testRenderObject.GetVertexData());
@@ -133,10 +135,14 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 #pragma region Descriptor sets
     LOG_INFO(L"Creating descriptor sets\n");
     m_perFrameDescriptorSetLayout.AddUniformBuffer(0, 1, VK_SHADER_STAGE_VERTEX_BIT);
-    //TODO: Move to different layout
-    m_perFrameDescriptorSetLayout.AddCombinedImageSampler(1, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     if (m_perFrameDescriptorSetLayout.Initialize() != Graphics::GraphicsError::OK) {
         LOG_ERROR(L"  Failed to create per frame descriptor set layout\n");
+        return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
+    }
+
+    m_testObjectDescriptorLayout.AddCombinedImageSampler(0, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    if (m_testObjectDescriptorLayout.Initialize() != Graphics::GraphicsError::OK) {
+        LOG_ERROR(L"  Failed to create test object descriptor set layout\n");
         return Graphics::GraphicsError::DESCRIPTOR_SET_CREATE_ERROR;
     }
 
@@ -144,23 +150,27 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
     // Create descriptor pools and descriptor sets for each frame in flight
     for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-        m_descriptorSet[i] = new VulkanDescriptorSetInstance(m_renderer);
-        m_descriptorSet[i]->SetDescriptorSetLayout(&m_perFrameDescriptorSetLayout);
+        m_perFrameDescriptorSet[i] = new VulkanDescriptorSetInstance(m_renderer);
+        m_perFrameDescriptorSet[i]->SetDescriptorSetLayout(&m_perFrameDescriptorSetLayout);
 
         VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_ubo.GetDeviceBuffer(i);
+        bufferInfo.buffer = m_perFrameUbo.GetDeviceBuffer(i);
         bufferInfo.offset = 0;
         bufferInfo.range = VK_WHOLE_SIZE;
-        m_descriptorSet[i]->UpdateDescriptorWrite(0, &bufferInfo);
+        m_perFrameDescriptorSet[i]->UpdateDescriptorWrite(0, &bufferInfo);
+
+        m_testObjectDescriptorSet[i] = new VulkanDescriptorSetInstance(m_renderer);
+        m_testObjectDescriptorSet[i]->SetDescriptorSetLayout(&m_testObjectDescriptorLayout);
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = m_testTexture.GetDeviceImageView();
         imageInfo.sampler = m_testSampler.GetVkSampler();
-        m_descriptorSet[i]->UpdateDescriptorWrite(1, &imageInfo);
+        m_testObjectDescriptorSet[i]->UpdateDescriptorWrite(0, &imageInfo);
 
         m_perFrameDescriptorPool[i] = new VulkanDescriptorSetAllocator(m_renderer);
         m_perFrameDescriptorPool[i]->AddDescriptorLayout(&m_perFrameDescriptorSetLayout, 1);
+        m_perFrameDescriptorPool[i]->AddDescriptorLayout(&m_testObjectDescriptorLayout, 1);
         m_perFrameDescriptorPool[i]->Initialize();
     }
 
@@ -247,6 +257,8 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     m_pipeline.SetShaderStage(&m_fragmentShader, "main");
 
     m_pipeline.SetDescriptorSet(0, &m_perFrameDescriptorSetLayout);
+    m_pipeline.SetDescriptorSet(1, &m_testObjectDescriptorLayout);
+    m_pipeline.AddPushConstantRange(0, sizeof(glm::mat4x4), VK_SHADER_STAGE_VERTEX_BIT);
 
     m_pipeline.SetDepthClampEnable(false);
     m_pipeline.SetRasterizerDiscardEnable(false);
@@ -361,8 +373,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Finalize() {
     m_renderPass.ResetResources();
 
     for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-        delete m_descriptorSet[i];
-        m_descriptorSet[i] = nullptr;
+        delete m_perFrameDescriptorSet[i];
+        m_perFrameDescriptorSet[i] = nullptr;
+        delete m_testObjectDescriptorSet[i];
+        m_testObjectDescriptorSet[i] = nullptr;
         delete m_perFrameDescriptorPool[i];
         m_perFrameDescriptorPool[i] = nullptr;
     }
@@ -383,17 +397,6 @@ Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
     m_curFrameIndex = (m_curFrameIndex + 1) % FRAMES_IN_FLIGHT;
     m_accumulatedTime += deltaTime;
 
-    // Update UBO
-    UBO ubo;
-    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f))
-                * glm::rotate(glm::mat4(1.0f), static_cast<float>(m_accumulatedTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f))
-                * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
-    ubo.view = m_camera.ViewMatrix();
-    ubo.proj = m_camera.ProjectionMatrix();
-
-    uint8_t *data = reinterpret_cast<uint8_t*>(m_ubo.GetMappedMemory(m_curFrameIndex));
-    memcpy(data, &ubo, sizeof(UBO));
-
     return Graphics::GraphicsError::OK;
 }
 
@@ -402,9 +405,16 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     // Make sure that the frame we're about to use is not still busy
     vkWaitForFences(m_renderer->GetDevice(), 1, &m_commandBuffers[m_curFrameIndex]->GetWaitFence(), VK_TRUE, std::numeric_limits<uint64_t>::max());
 
+    // Update per frame UBO
+    UBO ubo;
+    ubo.viewProj = m_camera.ProjectionMatrix() * m_camera.ViewMatrix();
+    uint8_t *data = reinterpret_cast<uint8_t *>(m_perFrameUbo.GetMappedMemory(m_curFrameIndex));
+    memcpy(data, &ubo, sizeof(UBO));
+
     // Reset and allocate descriptor sets
     m_perFrameDescriptorPool[m_curFrameIndex]->Reset();
-    m_perFrameDescriptorPool[m_curFrameIndex]->AllocateDescriptorSet(1, m_descriptorSet[m_curFrameIndex]);
+    VulkanDescriptorSetInstance *perFrameDescriptorSets[] = { m_perFrameDescriptorSet[m_curFrameIndex], m_testObjectDescriptorSet[m_curFrameIndex] };
+    m_perFrameDescriptorPool[m_curFrameIndex]->AllocateDescriptorSet(countof(perFrameDescriptorSets), perFrameDescriptorSets);
 
     auto &swapChain = m_renderer->m_swapchains[0];
     auto err = m_renderer->AcquireNextSwapChainImage(0, std::numeric_limits<uint64_t>::max(), m_swapChainSemaphores[m_curFrameIndex], VK_NULL_HANDLE, &m_curSwapChainImageIndex);
@@ -439,6 +449,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     vkCmdBeginRenderPass(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipeline());
+    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_perFrameDescriptorSet[m_curFrameIndex]->GetVkDescriptorSet(), 0, nullptr);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -458,9 +469,17 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
-    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 0, 1, &m_descriptorSet[m_curFrameIndex]->GetVkDescriptorSet(), 0, nullptr);
 
-    //vkCmdDraw(m_commandBuffers[m_curFrameIndex], static_cast<uint32_t>(m_testRenderObject.GetVertexCount()), 1, 0, 0);
+    //TODO: This comes from the object
+    glm::mat4x4 modelMatrix =
+        glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f))
+        * glm::rotate(glm::mat4(1.0f), static_cast<float>(m_accumulatedTime) * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f))
+        * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
+
+    VkDescriptorSet bindDescriptorSets[] = { m_testObjectDescriptorSet[m_curFrameIndex]->GetVkDescriptorSet() };
+    vkCmdBindDescriptorSets(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetVkPipelineLayout(), 1, countof(bindDescriptorSets), bindDescriptorSets, 0, nullptr);
+    vkCmdPushConstants(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), m_pipeline.GetVkPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4x4), &modelMatrix);
+
     vkCmdDrawIndexed(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), static_cast<uint32_t>(m_testRenderObject.GetIndexCount()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer());
