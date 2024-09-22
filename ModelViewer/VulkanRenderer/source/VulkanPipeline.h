@@ -108,6 +108,8 @@ public:
     void SetColorBlendConstants(float r, float g, float b, float a);
 #pragma endregion
 
+    bool IsDirty() const;
+
     // Creates a new pipeline if necessary
     // Returns the previously created pipeline if no state changes have been made
     Graphics::GraphicsError CreatePipeline(VkPipeline *out);
@@ -119,6 +121,38 @@ public:
 
     // Clears device resources used by the pipeline, forcing the next call to CreatePipeline to create a new VkPipeline object
     void ClearResources();
+
+#pragma region Getter functions for pipeline states
+    VkPrimitiveTopology GetInputTopology() const;
+    bool GetInputPrimitiveRestart() const;
+    VkViewport GetViewport() const;
+    VkRect2D GetScissor() const;
+    bool GetDepthClampEnable() const;
+    bool GetRasterizerDiscardEnable() const;
+    VkPolygonMode GetPolygonMode() const;
+    VkCullModeFlagBits GetCullMode() const;
+    VkFrontFace GetFrontFace() const;
+    bool GetDepthBiasEnable() const;
+    float GetDepthBiasConstantFactor() const;
+    float GetDepthBiasClamp() const;
+    float GetDepthBiasSlopeFactor() const;
+    float GetLineWidth();
+    bool GetDepthTestEnable() const;
+    bool GetDepthTestWriteEnable() const;
+    VkCompareOp GetDepthTestCompareOp() const;
+    bool GetDepthBoundsTestEnable() const;
+    float GetDepthBoundsTestMinBounds() const;
+    float GetDepthBoundsTestMaxBounds() const;
+    bool GetStencilTestEnable() const;
+    VkStencilOpState GetStencilTestFront() const;
+    VkStencilOpState GetStencilTestBack() const;
+    bool GetColorBlendLogicOpEnable() const;
+    VkLogicOp GetColorBlendLogicOp() const;
+    float GetColorBlendConstantsR() const;
+    float GetColorBlendConstantsG() const;
+    float GetColorBlendConstantsB() const;
+    float GetColorBlendConstantsA() const;
+#pragma endregion
 
 private:
     RendererImpl *m_renderer;

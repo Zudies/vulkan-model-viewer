@@ -162,6 +162,9 @@ Graphics::GraphicsError RendererImpl::Initialize(API *api, VulkanPhysicalDevice 
     sync2Features.synchronization2 = true;
     createInfo.pNext = &sync2Features;
 
+    // Require fillModeNonSolid
+    deviceFeatures.fillModeNonSolid = true;
+
 #if defined(_DEBUG) && _DEBUG
     LOG_VERBOSE("Creating logical vkDevice with layers:\n");
     for (auto &i : m_vkLayersList) {

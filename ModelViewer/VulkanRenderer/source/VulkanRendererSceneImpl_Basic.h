@@ -35,6 +35,9 @@ public:
     Graphics::GraphicsError Update(f64 deltaTime);
     Graphics::GraphicsError LateUpdate(f64 deltaTime);
 
+    std::string GetPipelineStateValue(const std::string &pipelineState);
+    void SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue);
+
 private:
     Graphics::GraphicsError _onDestroySwapChain(int idx);
     Graphics::GraphicsError _onCreateSwapChain(int idx);

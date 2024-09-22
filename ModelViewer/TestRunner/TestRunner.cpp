@@ -2,6 +2,7 @@
 // A simple harness for testing Renderer dlls without integrating with WPF
 //
 
+#include <string>
 #include "Common.h"
 #include "ErrorCodes.h"
 #include "WindowsFrameRateController.h"

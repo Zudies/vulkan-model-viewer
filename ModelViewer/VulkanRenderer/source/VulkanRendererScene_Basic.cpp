@@ -41,4 +41,14 @@ Graphics::GraphicsError RendererScene_Basic::LateUpdate(f64 deltaTime) {
     return m_impl->LateUpdate(deltaTime);
 }
 
+std::string RendererScene_Basic::GetPipelineStateValue(const std::string &pipelineState) {
+    ASSERT(m_impl);
+    return m_impl->GetPipelineStateValue(pipelineState);
+}
+
+void RendererScene_Basic::SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue) {
+    ASSERT(m_impl);
+    return m_impl->SetPipelineStateValue(pipelineState, pipelineStateValue);
+}
+
 } // namespace Vulkan

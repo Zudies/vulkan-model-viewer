@@ -9,10 +9,15 @@
 
 #include "WindowsFrameRateController.h"
 
+#include "VulkanRendererScene_Basic.h"
+
+#include "VulkanToManagedConversion.h"
+
 VulkanRenderEngine::VulkanRenderEngine()
   : m_requirements(nullptr),
     m_api(nullptr),
     m_renderer(nullptr),
+    m_activeScene(nullptr),
     m_shouldExit(false),
     m_fps(0.0) {
     m_updateThread = gcnew Thread(gcnew ThreadStart(this, &VulkanRenderEngine::UpdateThreadMain));
@@ -22,6 +27,64 @@ VulkanRenderEngine::VulkanRenderEngine()
 
 VulkanRenderEngine::~VulkanRenderEngine() {
 
+}
+
+std::string VulkanRenderEngine::_idNameToNativeName(System::String ^contentId) {
+    for (int i = 0; i < sizeof(ContentNameMapping) / sizeof(ContentNameMapping[0]); ++i) {
+        if (contentId->Equals(gcnew System::String(ContentNameMapping[i].first))) {
+            return ContentNameMapping[i].second;
+        }
+    }
+
+    return "";
+}
+
+System::String ^VulkanRenderEngine::_nativeEngineValueToManagedContent(const std::string &nativeValue) {
+    for (int i = 0; i < sizeof(ContentValueMapping) / sizeof(ContentValueMapping[0]); ++i) {
+        if (nativeValue == ContentValueMapping[i].second) {
+            return gcnew System::String(ContentValueMapping[i].first);
+        }
+    }
+
+    return nullptr;
+}
+
+std::string VulkanRenderEngine::_managedContentToNativeEngineValue(System::String ^contentValue) {
+    for (int i = 0; i < sizeof(ContentValueMapping) / sizeof(ContentValueMapping[0]); ++i) {
+        if (contentValue->Equals(gcnew System::String(ContentValueMapping[i].first))) {
+            return ContentValueMapping[i].second;
+        }
+    }
+
+    return "";
+}
+
+System::String ^VulkanRenderEngine::GetEngineValue(System::String ^contentId) {
+    Vulkan::RendererScene_Basic *scene = static_cast<Vulkan::RendererScene_Basic *>(m_activeScene->GetNativeScene());
+
+    if (contentId->Equals("ID_POLYGON_MODE")) {
+        return _nativeEngineValueToManagedContent(scene->GetPipelineStateValue(_idNameToNativeName(contentId)));
+    }
+    else if (contentId->Equals("ID_CULL_MODE")) {
+        return _nativeEngineValueToManagedContent(scene->GetPipelineStateValue(_idNameToNativeName(contentId)));
+    } 
+
+    System::Console::WriteLine(System::String::Format("ERROR: Unable to get VK engine value of {0}", contentId));
+    return nullptr;
+}
+
+void VulkanRenderEngine::SetEngineValue(System::String ^contentId, System::String ^contentValue) {
+    Vulkan::RendererScene_Basic *scene = static_cast<Vulkan::RendererScene_Basic *>(m_activeScene->GetNativeScene());
+
+    if (contentId->Equals("ID_POLYGON_MODE")) {
+        scene->SetPipelineStateValue(_idNameToNativeName(contentId), _managedContentToNativeEngineValue(contentValue));
+    }
+    else if (contentId->Equals("ID_CULL_MODE")) {
+        scene->SetPipelineStateValue(_idNameToNativeName(contentId), _managedContentToNativeEngineValue(contentValue));
+    }
+    else {
+        System::Console::WriteLine(System::String::Format("ERROR: Unable to set VK engine value for {0} = {1}", contentId, contentValue));
+    }
 }
 
 void VulkanRenderEngine::Initialize(System::IntPtr hInstance, System::IntPtr hWnd) {
@@ -56,6 +119,9 @@ void VulkanRenderEngine::Initialize(System::IntPtr hInstance, System::IntPtr hWn
     testScene->Initialize(m_renderer);
     m_renderer->SetSceneActive(testScene);
     m_scenes.Add(testScene);
+
+    // Only have one scene right now
+    m_activeScene = testScene;
 
     // Start the main rendering thread
     m_updateThread->Start();

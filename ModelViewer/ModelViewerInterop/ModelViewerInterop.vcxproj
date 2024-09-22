@@ -155,6 +155,7 @@
   <ItemGroup>
     <ClInclude Include="source\GraphicsApiInterface.h" />
     <ClInclude Include="source\GraphicsDeviceInterface.h" />
+    <ClInclude Include="source\GraphicsEngineToUIInterface.h" />
     <ClInclude Include="source\GraphicsRendererInterface.h" />
     <ClInclude Include="source\GraphicsSceneInterface.h" />
     <ClInclude Include="source\JsonRequirementsInterop.h" />
@@ -166,6 +167,7 @@
     <ClInclude Include="source\VulkanDeviceInterop.h" />
     <ClInclude Include="source\VulkanRenderEngineInterop.h" />
     <ClInclude Include="source\VulkanRendererInterop.h" />
+    <ClInclude Include="source\VulkanToManagedConversion.h" />
     <ClInclude Include="source\Win32WindowSurfaceInterop.h" />
     <ClInclude Include="source\WindowSurfaceInterface.h" />
   </ItemGroup>

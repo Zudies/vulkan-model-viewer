@@ -1,3 +1,7 @@
+#pragma once
+
+#include "GraphicsEngineToUIInterface.h"
+
 ref class JsonRequirements;
 ref class VulkanApi;
 ref class VulkanRenderer;
@@ -6,7 +10,7 @@ interface class GraphicsSceneInterface;
 using namespace System::Collections::Generic;
 using namespace System::Threading;
 
-public ref class VulkanRenderEngine {
+public ref class VulkanRenderEngine : public GraphicsEngineToUIInterface {
 
     //TODO: Read from UI
     // Set the max FPS of the rendering engine
@@ -17,6 +21,9 @@ public:
     VulkanRenderEngine();
     ~VulkanRenderEngine();
 
+    virtual System::String ^GetEngineValue(System::String ^contentId);
+    virtual void SetEngineValue(System::String ^contentId, System::String ^contentValue);
+
     void Initialize(System::IntPtr hInstance, System::IntPtr hWnd);
     void Exit();
 
@@ -25,11 +32,16 @@ public:
 private:
     void UpdateThreadMain();
 
+    std::string _idNameToNativeName(System::String ^contentId);
+    System::String ^_nativeEngineValueToManagedContent(const std::string &nativeValue);
+    std::string _managedContentToNativeEngineValue(System::String ^contentValue);
+
 private:
     JsonRequirements ^m_requirements;
     VulkanApi ^m_api;
     VulkanRenderer ^m_renderer;
     List<GraphicsSceneInterface^> m_scenes;
+    GraphicsSceneInterface ^m_activeScene;
 
     bool m_shouldExit;
     Thread ^m_updateThread;

@@ -7,6 +7,8 @@
 #include "glm/gtx/euler_angles.hpp"
 #include "glm/gtx/vector_angle.hpp"
 
+static const f32 EPSILON = 0.001f;
+
 namespace Graphics {
 
 Camera::Camera()
@@ -54,7 +56,7 @@ void Camera::MoveLocal(f32 x, f32 y, f32 z) {
 
 void Camera::SetForward(glm::vec3 forwardDir) {
     m_forward = glm::normalize(forwardDir);
-    if (m_forward == glm::vec3(0.0f, 1.0f, 0.0f)) {
+    if (glm::length(glm::cross(m_forward, glm::vec3(0.0f, 1.0f, 0.0f))) <= EPSILON) {
         m_right = glm::normalize(glm::cross(glm::cross(m_forward, m_right), m_forward));
     }
     else {

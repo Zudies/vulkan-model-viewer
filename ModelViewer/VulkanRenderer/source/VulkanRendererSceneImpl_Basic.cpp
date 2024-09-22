@@ -397,6 +397,15 @@ Graphics::GraphicsError RendererSceneImpl_Basic::EarlyUpdate(f64 deltaTime) {
     m_curFrameIndex = (m_curFrameIndex + 1) % FRAMES_IN_FLIGHT;
     m_accumulatedTime += deltaTime;
 
+    // If pipeline is dirty, need to wait for all frames to finish so that it can be recreated
+    //TODO: Not ideal to do this wait instead of just having the VkPipeline be cached until all frames are done
+    if (m_pipeline.IsDirty()) {
+        for (size_t i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+            vkWaitForFences(m_renderer->GetDevice(), 1, &m_commandBuffers[i]->GetWaitFence(), VK_TRUE, std::numeric_limits<uint64_t>::max());
+        }
+        m_pipeline.CreatePipeline(nullptr);
+    }
+
     return Graphics::GraphicsError::OK;
 }
 
@@ -521,6 +530,69 @@ Graphics::GraphicsError RendererSceneImpl_Basic::LateUpdate(f64 deltaTime) {
     }
 
     return Graphics::GraphicsError::OK;
+}
+
+std::string RendererSceneImpl_Basic::GetPipelineStateValue(const std::string &pipelineState) {
+    if (pipelineState.empty()) {
+        return "";
+    }
+
+    if (pipelineState == "rasterizer.polygonMode") {
+        switch (m_pipeline.GetPolygonMode()) {
+        case VK_POLYGON_MODE_FILL:
+            return "VK_POLYGON_MODE_FILL";
+        case VK_POLYGON_MODE_LINE:
+            return "VK_POLYGON_MODE_LINE";
+        case VK_POLYGON_MODE_POINT:
+            return "VK_POLYGON_MODE_POINT";
+        }
+    }
+    else if (pipelineState == "rasterizer.cullMode") {
+        switch (m_pipeline.GetCullMode()) {
+        case VK_CULL_MODE_NONE:
+            return "VK_CULL_MODE_NONE";
+        case VK_CULL_MODE_FRONT_BIT:
+            return "VK_CULL_MODE_FRONT_BIT";
+        case VK_CULL_MODE_BACK_BIT:
+            return "VK_CULL_MODE_BACK_BIT";
+        case VK_CULL_MODE_FRONT_AND_BACK:
+            return "VK_CULL_MODE_FRONT_AND_BACK";
+        }
+    }
+
+    return "";
+}
+
+void RendererSceneImpl_Basic::SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue) {
+    if (pipelineState.empty()) {
+        return;
+    }
+
+    if (pipelineState == "rasterizer.polygonMode") {
+        if (pipelineStateValue == "VK_POLYGON_MODE_FILL") {
+            m_pipeline.SetPolygonMode(VK_POLYGON_MODE_FILL);
+        }
+        else if (pipelineStateValue == "VK_POLYGON_MODE_LINE") {
+            m_pipeline.SetPolygonMode(VK_POLYGON_MODE_LINE);
+        }
+        else if (pipelineStateValue == "VK_POLYGON_MODE_POINT") {
+            m_pipeline.SetPolygonMode(VK_POLYGON_MODE_POINT);
+        }
+    }
+    else if (pipelineState == "rasterizer.cullMode") {
+        if (pipelineStateValue == "VK_CULL_MODE_NONE") {
+            m_pipeline.SetCullMode(VK_CULL_MODE_NONE, m_pipeline.GetFrontFace());
+        }
+        else if (pipelineStateValue == "VK_CULL_MODE_FRONT_BIT") {
+            m_pipeline.SetCullMode(VK_CULL_MODE_FRONT_BIT, m_pipeline.GetFrontFace());
+        }
+        else if (pipelineStateValue == "VK_CULL_MODE_BACK_BIT") {
+            m_pipeline.SetCullMode(VK_CULL_MODE_BACK_BIT, m_pipeline.GetFrontFace());
+        }
+        else if (pipelineStateValue == "VK_CULL_MODE_FRONT_AND_BACK") {
+            m_pipeline.SetCullMode(VK_CULL_MODE_FRONT_AND_BACK, m_pipeline.GetFrontFace());
+        }
+    }
 }
 
 Graphics::GraphicsError RendererSceneImpl_Basic::_onDestroySwapChain(int idx) {

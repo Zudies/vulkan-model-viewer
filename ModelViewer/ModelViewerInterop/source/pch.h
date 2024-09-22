@@ -17,3 +17,4 @@ typedef wchar_t char16;
 
 #include "ErrorCodes.h"
 #include <msclr\marshal_cppstd.h>
+#include <string>

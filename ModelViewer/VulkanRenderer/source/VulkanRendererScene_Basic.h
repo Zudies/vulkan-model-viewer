@@ -20,6 +20,11 @@ public:
     virtual Graphics::GraphicsError Update(f64 deltaTime) override;
     virtual Graphics::GraphicsError LateUpdate(f64 deltaTime) override;
 
+    // Functions for setting and fetching UI values
+    // Note: These always take as parameters native values and return native values
+    std::string GetPipelineStateValue(const std::string &pipelineState);
+    void SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue);
+
 private:
     RendererSceneImpl_Basic *m_impl;
 

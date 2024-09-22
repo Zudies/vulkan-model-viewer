@@ -245,6 +245,10 @@ void VulkanPipeline::SetColorBlendConstants(float r, float g, float b, float a) 
     m_colorBlendState.blendConstants[3] = a;
 }
 
+bool VulkanPipeline::IsDirty() const {
+    return m_flags.GetFlag(VULKAN_PIPELINE_FLAG_DIRTY) || m_flags.GetFlag(VULKAN_PIPELINE_FLAG_LAYOUT_DIRTY);
+}
+
 Graphics::GraphicsError VulkanPipeline::CreatePipeline(VkPipeline *out) {
     if (m_vkPipeline && !m_flags.GetFlag(VULKAN_PIPELINE_FLAG_DIRTY)) {
         if (out) {
@@ -369,5 +373,122 @@ void VulkanPipeline::ClearResources() {
         m_vkPipelineLayout = VK_NULL_HANDLE;
     }
 }
+
+VkPrimitiveTopology VulkanPipeline::GetInputTopology() const {
+    return m_inputAssemblyTopology;
+}
+
+bool VulkanPipeline::GetInputPrimitiveRestart() const {
+    return m_inputAssemblyPrimitiveRestart;
+}
+
+VkViewport VulkanPipeline::GetViewport() const {
+    return m_viewportData;
+}
+
+VkRect2D VulkanPipeline::GetScissor() const {
+    return m_scissorData;
+}
+
+bool VulkanPipeline::GetDepthClampEnable() const {
+    return m_rasterizerState.depthClampEnable;
+}
+
+bool VulkanPipeline::GetRasterizerDiscardEnable() const {
+    return m_rasterizerState.rasterizerDiscardEnable;
+}
+
+VkPolygonMode VulkanPipeline::GetPolygonMode() const {
+    return m_rasterizerState.polygonMode;
+}
+
+VkCullModeFlagBits VulkanPipeline::GetCullMode() const {
+    return (VkCullModeFlagBits)m_rasterizerState.cullMode;
+}
+
+VkFrontFace VulkanPipeline::GetFrontFace() const {
+    return m_rasterizerState.frontFace;
+}
+
+bool VulkanPipeline::GetDepthBiasEnable() const {
+    return m_rasterizerState.depthBiasEnable;
+}
+
+float VulkanPipeline::GetDepthBiasConstantFactor() const {
+    return m_rasterizerState.depthBiasConstantFactor;
+}
+
+float VulkanPipeline::GetDepthBiasClamp() const {
+    return m_rasterizerState.depthBiasClamp;
+}
+
+float VulkanPipeline::GetDepthBiasSlopeFactor() const {
+    return m_rasterizerState.depthBiasSlopeFactor;
+}
+
+float VulkanPipeline::GetLineWidth() {
+    return m_rasterizerState.lineWidth;
+}
+
+bool VulkanPipeline::GetDepthTestEnable() const {
+    return m_depthStencilState.depthTestEnable;
+}
+
+bool VulkanPipeline::GetDepthTestWriteEnable() const {
+    return m_depthStencilState.depthWriteEnable;
+}
+
+VkCompareOp VulkanPipeline::GetDepthTestCompareOp() const {
+    return m_depthStencilState.depthCompareOp;
+}
+
+bool VulkanPipeline::GetDepthBoundsTestEnable() const {
+    return m_depthStencilState.depthBoundsTestEnable;
+}
+
+float VulkanPipeline::GetDepthBoundsTestMinBounds() const {
+    return m_depthStencilState.minDepthBounds;
+}
+
+float VulkanPipeline::GetDepthBoundsTestMaxBounds() const {
+    return m_depthStencilState.maxDepthBounds;
+}
+
+bool VulkanPipeline::GetStencilTestEnable() const {
+    return m_depthStencilState.stencilTestEnable;
+}
+
+VkStencilOpState VulkanPipeline::GetStencilTestFront() const {
+    return m_depthStencilState.front;
+}
+
+VkStencilOpState VulkanPipeline::GetStencilTestBack() const {
+    return m_depthStencilState.back;
+}
+
+bool VulkanPipeline::GetColorBlendLogicOpEnable() const {
+    return m_colorBlendState.logicOpEnable;
+}
+
+VkLogicOp VulkanPipeline::GetColorBlendLogicOp() const {
+    return m_colorBlendState.logicOp;
+}
+
+float VulkanPipeline::GetColorBlendConstantsR() const {
+    return m_colorBlendState.blendConstants[0];
+}
+
+float VulkanPipeline::GetColorBlendConstantsG() const {
+    return m_colorBlendState.blendConstants[1];
+}
+
+float VulkanPipeline::GetColorBlendConstantsB() const {
+    return m_colorBlendState.blendConstants[2];
+}
+
+float VulkanPipeline::GetColorBlendConstantsA() const {
+    return m_colorBlendState.blendConstants[3];
+}
+
 
 } // namespace Vulkan

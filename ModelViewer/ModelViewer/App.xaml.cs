@@ -29,8 +29,7 @@ namespace ModelViewer
 
             wnd.Show();
 
-            //TODO: Does this need to go elsewhere for UI control?
-            wnd.InitializeVulkanEngine();
+            wnd.Initialize();
         }
     }
 }
