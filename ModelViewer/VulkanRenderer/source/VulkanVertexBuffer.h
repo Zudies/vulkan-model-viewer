@@ -41,7 +41,7 @@ private:
 
 private:
     typedef std::vector<VertexType> VertexData;
-    typedef std::vector<uint16_t> IndexData;
+    typedef std::vector<uint32_t> IndexData;
 
     RendererImpl *m_renderer;
 

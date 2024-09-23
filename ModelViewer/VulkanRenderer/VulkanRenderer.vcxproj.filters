@@ -181,6 +181,12 @@
     <CopyFileToFolders Include="resource\texture.jpg">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="resource\viking_room.obj">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="resource\viking_room.png">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="resource\basic-frag.frag">

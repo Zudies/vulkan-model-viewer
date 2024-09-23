@@ -98,6 +98,7 @@
     <ClInclude Include="source\ImageLoader.h" />
     <ClInclude Include="source\JsonRendererRequirements.h" />
     <ClInclude Include="source\JsonRendererRequirementsImpl.h" />
+    <ClInclude Include="source\ModelObjLoader.h" />
     <ClInclude Include="source\ShaderModule.h" />
     <ClInclude Include="source\Version.h" />
     <ClInclude Include="source\Win32WindowSurface.h" />
@@ -122,6 +123,7 @@
     <ClCompile Include="source\ImageLoader.cpp" />
     <ClCompile Include="source\JsonRendererRequirements.cpp" />
     <ClCompile Include="source\JsonRendererRequirementsImpl.cpp" />
+    <ClCompile Include="source\ModelObjLoader.cpp" />
     <ClCompile Include="source\ShaderModule.cpp" />
     <ClCompile Include="source\Win32WindowSurface.cpp" />
     <ClCompile Include="source\WindowsFrameRateController.cpp" />

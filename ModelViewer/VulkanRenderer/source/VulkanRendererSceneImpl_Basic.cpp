@@ -5,6 +5,7 @@
 
 #include "VulkanPipeline.h"
 #include "glm/gtc/matrix_transform.hpp"
+#include "ModelObjLoader.h"
 
 namespace Vulkan {
 
@@ -75,6 +76,9 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     auto &swapChain = m_renderer->m_swapchains[0];
 
 #pragma region Scene object creation
+    Graphics::ModelObjLoader testLoader;
+    testLoader.Load("resources/viking_room.obj", nullptr);
+
     //TODO: Move object initialization elsewhere
     m_camera.SetPosition(0.0f, 2.0f, -2.0f);
     m_camera.LookAt(0.0f, 0.0f, 0.0f);
@@ -90,9 +94,9 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
     m_perFrameUbo.Initialize(sizeof(UBO), FRAMES_IN_FLIGHT);
 
     m_testRenderObject.SetVertexCount(8);
-    Vertex *vertexData = reinterpret_cast<Vertex *>(m_testRenderObject.GetVertexData());
+    Vertex *vertexData = reinterpret_cast<Vertex*>(m_testRenderObject.GetVertexData());
     m_testRenderObject.SetIndexCount(12);
-    uint16_t *indexData = reinterpret_cast<uint16_t *>(m_testRenderObject.GetIndexData());
+    uint32_t *indexData = reinterpret_cast<uint32_t*>(m_testRenderObject.GetIndexData());
 
     vertexData[0] = { {-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f} };
     vertexData[1] = { {0.5f, 0.0f, -0.5f}, { 0.0f, 1.0f, 0.0f }, {1.0f, 1.0f} };
@@ -477,7 +481,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Update(f64 deltaTime) {
     VkBuffer vertexBuffers[] = { m_testRenderObject.GetVertexDeviceBuffer()};
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(m_commandBuffers[m_curFrameIndex]->GetVkCommandBuffer(), m_testRenderObject.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     //TODO: This comes from the object
     glm::mat4x4 modelMatrix =

@@ -41,7 +41,7 @@ template<class VertexType>
 void VulkanVertexBuffer<VertexType>::SetIndexCount(size_t count) {
     m_indexData.resize(count);
 
-    VkDeviceSize bufferSize = sizeof(uint16_t) * count;
+    VkDeviceSize bufferSize = sizeof(IndexData::value_type) * count;
     m_indexBuffer.Clear();
 
     m_indexBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, nullptr, 0);
@@ -103,7 +103,7 @@ Graphics::GraphicsError VulkanVertexBuffer<VertexType>::FlushIndexToDevice() {
     }
 
     // Allocate a staging buffer
-    VkDeviceSize bufferSize = sizeof(uint16_t) * m_indexData.size();
+    VkDeviceSize bufferSize = sizeof(IndexData::value_type) * m_indexData.size();
     m_indexStagingBuffer.Clear();
     m_indexStagingBuffer.Initialize(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, nullptr, 0);
     m_indexStagingBuffer.Allocate(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
