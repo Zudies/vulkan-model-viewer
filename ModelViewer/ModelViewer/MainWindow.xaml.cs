@@ -39,7 +39,7 @@ namespace ModelViewer
             RegisterName(host.Name, host); // This register is needed or the control can't be found with FindName
             ((Border)FindName("RenderWindowParent")).Child = host;
 
-            host.MessageHook += new HwndSourceHook(_nativeControlWndProc);
+            host.MessageHook += new HwndSourceHook(_cameraControlWndProc);
         }
 
         public void Initialize()
@@ -291,7 +291,7 @@ namespace ModelViewer
         [DllImport("user32.dll")]
         private static extern int ShowCursor(bool bShow);
 
-        private IntPtr _nativeControlWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        private IntPtr _cameraControlWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             handled = false;
 
@@ -305,6 +305,7 @@ namespace ModelViewer
                         int yPos = (lParam.ToInt32() >> 16) & 0xFFFF;
                         Point screenPos = PointToScreen(new Point(xPos, yPos));
                         m_cameraController?.SetMousePos((int)screenPos.X, (int)screenPos.Y);
+                        handled = true;
                     }
                     break;
 
@@ -318,6 +319,7 @@ namespace ModelViewer
                         RenderWindowHost? renderWindow = FindName("RenderWindow") as RenderWindowHost;
                         renderWindow?.Focus();
                         ShowCursor(false);
+                        handled = true;
                     }
                     break;
 
@@ -330,6 +332,7 @@ namespace ModelViewer
                         m_cameraController?.EndControl((int)screenPos.X, (int)screenPos.Y);
                         Keyboard.ClearFocus();
                         ShowCursor(true);
+                        handled = true;
                     }
                     break;
             }
