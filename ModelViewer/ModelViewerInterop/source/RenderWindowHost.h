@@ -16,6 +16,8 @@ protected:
     virtual HandleRef BuildWindowCore(HandleRef hwndParent) override;
     virtual void DestroyWindowCore(HandleRef hwnd) override;
 
+    virtual IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, bool %handled) override;
+
 private:
     HWND m_hwnd;
 

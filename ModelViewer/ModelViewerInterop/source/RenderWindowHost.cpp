@@ -1,17 +1,7 @@
 #include "pch.h"
 #include "RenderWindowHost.h"
 
-namespace {
-bool g_close;
-}
-
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
-    case WM_CLOSE:
-        g_close = true;
-        break;
-    }
-
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
@@ -54,4 +44,9 @@ HandleRef RenderWindowHost::BuildWindowCore(HandleRef hwndParent) {
 
 void RenderWindowHost::DestroyWindowCore(HandleRef) {
     // Do nothing, parent will clean up hwnd
+}
+
+IntPtr RenderWindowHost::WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, bool %handled) {
+    handled = false;
+    return IntPtr::Zero;
 }

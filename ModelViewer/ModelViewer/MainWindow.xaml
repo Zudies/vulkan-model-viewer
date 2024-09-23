@@ -25,7 +25,7 @@
         </Grid.RowDefinitions>
 
         <!-- One border that is rendered into from the Renderer and one grid for GUI controls -->
-        <Border Name="RenderWindowParent" Width="auto" Height="auto" Grid.Column="0"/>
+        <Border Name="RenderWindowParent" Width="auto" Height="auto" Grid.Column="0" />
         <Grid Name="ViewerControls" Grid.Column="1" Width="auto" Height="auto">
             <Grid.RowDefinitions>
                 <RowDefinition Height="9*"/>
@@ -36,13 +36,13 @@
                 <TabItem Header="General">
                     <Grid ShowGridLines="true">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="3*"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="2*"/>
                         </Grid.RowDefinitions>
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="2*"/>
-                                <RowDefinition Height="8*"/>
+                                <RowDefinition Height="14*"/>
                             </Grid.RowDefinitions>
 
                             <Label Grid.Row="0"><Bold>Camera</Bold></Label>
@@ -50,21 +50,61 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="3*"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="3*"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="3*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Label Grid.Column="0" HorizontalAlignment="Center">X: 000.00</Label>
-                                    <Label Grid.Column="1" HorizontalAlignment="Center">Y: 000.00</Label>
-                                    <Label Grid.Column="2" HorizontalAlignment="Center">Z: 000.00</Label>
+                                    <Label Grid.Column="0" HorizontalAlignment="Center">X:</Label>
+                                    <Label Name="ID_CAMERA_POS_X" Grid.Column="1" HorizontalAlignment="Left">000.000</Label>
+                                    <Label Grid.Column="2" HorizontalAlignment="Center">Y:</Label>
+                                    <Label Name="ID_CAMERA_POS_Y" Grid.Column="3" HorizontalAlignment="Left">000.000</Label>
+                                    <Label Grid.Column="4" HorizontalAlignment="Center">Z:</Label>
+                                    <Label Name="ID_CAMERA_POS_Z" Grid.Column="5" HorizontalAlignment="Left">000.000</Label>
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="10*"/>
                                     </Grid.ColumnDefinitions>
-                                    <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center"></CheckBox>
+                                    <CheckBox Name="ID_CAMERA_FIXED_UP_DIR" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="True" />
                                     <Label Grid.Column="1">Fixed Up Vector</Label>
                                 </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">Speed</Label>
+                                    <Slider Name="ID_CAMERA_SPEED" Minimum="0" Maximum="10" Value="5" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="1" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">FOV</Label>
+                                    <Slider Name="ID_CAMERA_FOV" Minimum="60" Maximum="120" Value="78" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="10" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                </Grid>
+                                <Label>Sensitivity</Label>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">X</Label>
+                                    <Slider Name="ID_CAMERA_SENSITIVITY_X" Minimum="0" Maximum="50" Value="10" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="5" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">Y</Label>
+                                    <Slider Name="ID_CAMERA_SENSITIVITY_Y" Minimum="0" Maximum="50" Value="10" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="5" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                </Grid>
+
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -97,6 +137,10 @@
                         </Grid>
                         
                     </StackPanel>
+                </TabItem>
+                <TabItem Header="Lighting">
+                </TabItem>
+                <TabItem Header="Graphics">
                 </TabItem>
             </TabControl>
             <Grid Width="auto" Height="auto" Grid.Row="1">

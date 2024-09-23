@@ -13,16 +13,23 @@
 
 #include "VulkanToManagedConversion.h"
 
+#include "CameraInputController.h"
+
+#include "../ext/glm/glm.hpp"
+#include "Camera.h"
+
 VulkanRenderEngine::VulkanRenderEngine()
   : m_requirements(nullptr),
     m_api(nullptr),
     m_renderer(nullptr),
     m_activeScene(nullptr),
     m_shouldExit(false),
-    m_fps(0.0) {
+    m_fps(0.0),
+    m_cameraController(nullptr) {
     m_updateThread = gcnew Thread(gcnew ThreadStart(this, &VulkanRenderEngine::UpdateThreadMain));
     m_exitLock = gcnew ReaderWriterLockSlim(LockRecursionPolicy::SupportsRecursion);
     m_fpsLock = gcnew ReaderWriterLockSlim(LockRecursionPolicy::SupportsRecursion);
+    m_cameraController = gcnew CameraInputController();
 }
 
 VulkanRenderEngine::~VulkanRenderEngine() {
@@ -62,7 +69,16 @@ std::string VulkanRenderEngine::_managedContentToNativeEngineValue(System::Strin
 System::String ^VulkanRenderEngine::GetEngineValue(System::String ^contentId) {
     Vulkan::RendererScene_Basic *scene = static_cast<Vulkan::RendererScene_Basic *>(m_activeScene->GetNativeScene());
 
-    if (contentId->Equals("ID_POLYGON_MODE")) {
+    if (contentId->Equals("ID_CAMERA_POS_X")) {
+        return System::String::Format("{0:F3}", scene->GetCamera()->GetPosition().x);
+    }
+    else if (contentId->Equals("ID_CAMERA_POS_Y")) {
+        return System::String::Format("{0:F3}", scene->GetCamera()->GetPosition().y);
+    }
+    else if (contentId->Equals("ID_CAMERA_POS_Z")) {
+        return System::String::Format("{0:F3}", scene->GetCamera()->GetPosition().z);
+    }
+    else if (contentId->Equals("ID_POLYGON_MODE")) {
         return _nativeEngineValueToManagedContent(scene->GetPipelineStateValue(_idNameToNativeName(contentId)));
     }
     else if (contentId->Equals("ID_CULL_MODE")) {
@@ -81,6 +97,9 @@ void VulkanRenderEngine::SetEngineValue(System::String ^contentId, System::Strin
     }
     else if (contentId->Equals("ID_CULL_MODE")) {
         scene->SetPipelineStateValue(_idNameToNativeName(contentId), _managedContentToNativeEngineValue(contentValue));
+    }
+    else if (contentId->Equals("ID_CAMERA_FOV")) {
+        scene->GetCamera()->SetVerticalFOVDeg(static_cast<f32>(System::Convert::ToDouble(contentValue)));
     }
     else {
         System::Console::WriteLine(System::String::Format("ERROR: Unable to set VK engine value for {0} = {1}", contentId, contentValue));
@@ -140,6 +159,10 @@ f64 VulkanRenderEngine::GetFps() {
     return result;
 }
 
+CameraInputController ^VulkanRenderEngine::GetCameraController() {
+    return m_cameraController;
+}
+
 void VulkanRenderEngine::UpdateThreadMain() {
     // Initialize frame rate controller
     Performance::FrameRateControllerSettings frcSettings{};
@@ -162,13 +185,40 @@ void VulkanRenderEngine::UpdateThreadMain() {
 
         timeSinceLastFrame += frameController.GetElapsedTime();
         if (timeSinceLastFrame >= frcSettings.DesiredFrameTime) {
-            // Run a frame
-            //TODO: Handle errors
-            m_renderer->Update(static_cast<float>(timeSinceLastFrame));
+            // Cap frame time to prevent spikes
+            f64 effectiveDt = std::min(timeSinceLastFrame, frcSettings.DesiredFrameTime != 0.0 ? 2 * frcSettings.DesiredFrameTime : 1.0 / 20);
 
-            // Update FPS (smooth the fps using 20% of current)
+            // Run a frame
+            // Update camera controller
+            if (m_cameraController->IsActive()) {
+                MousePos mouseDelta = m_cameraController->GetMouseDelta();
+                MovementValue cameraMovement = m_cameraController->GetMovement();
+                bool useFixedUpDir = m_cameraController->IsFixedUpDir();
+
+                Vulkan::RendererScene_Basic *scene = static_cast<Vulkan::RendererScene_Basic *>(m_activeScene->GetNativeScene());
+                Graphics::Camera *nativeCamera = scene->GetCamera();
+
+                // Rotate first and then move
+                if (useFixedUpDir) {
+                    nativeCamera->UpdateVerticalAngleDeg(mouseDelta.y * static_cast<float>(effectiveDt));
+                    nativeCamera->UpdateHorizontalAngleDeg(mouseDelta.x * static_cast<float>(effectiveDt));
+                }
+                else {
+                    nativeCamera->UpdateYawPitchRollDeg(mouseDelta.x * static_cast<float>(effectiveDt), mouseDelta.y * static_cast<float>(effectiveDt), 0.0f);
+                }
+
+                nativeCamera->MoveLocal(glm::vec3(cameraMovement.x, cameraMovement.y, cameraMovement.z) * static_cast<float>(effectiveDt));
+
+                m_cameraController->ResetMousePos();
+            }
+
+            // Render the frame
+            //TODO: Handle errors
+            m_renderer->Update(static_cast<float>(effectiveDt));
+
+            // Update FPS (smooth the fps using a % of current)
             m_fpsLock->EnterWriteLock();
-            m_fps = m_fps * 0.8 + 0.2 / timeSinceLastFrame;
+            m_fps = m_fps * 0.95 + 0.05 / timeSinceLastFrame;
             m_fpsLock->ExitWriteLock();
 
             timeSinceLastFrame = 0.0;

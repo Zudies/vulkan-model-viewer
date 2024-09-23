@@ -27,6 +27,7 @@ public:
 
     // Updates look direction
     // Yaw/pitch/roll updates direction in local space
+    //TODO: Needs work
     void UpdateYawPitchRollRad(f32 yaw, f32 pitch, f32 roll);
     void UpdateYawPitchRollDeg(f32 yaw, f32 pitch, f32 roll);
 

@@ -2,6 +2,12 @@
 
 #include "base/RendererScene_Base.h"
 
+namespace Graphics {
+
+class Camera;
+
+}
+
 namespace Vulkan {
 
 class RendererSceneImpl_Basic;
@@ -24,6 +30,7 @@ public:
     // Note: These always take as parameters native values and return native values
     std::string GetPipelineStateValue(const std::string &pipelineState);
     void SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue);
+    Graphics::Camera *GetCamera();
 
 private:
     RendererSceneImpl_Basic *m_impl;

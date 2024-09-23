@@ -6,6 +6,7 @@ ref class JsonRequirements;
 ref class VulkanApi;
 ref class VulkanRenderer;
 interface class GraphicsSceneInterface;
+ref class CameraInputController;
 
 using namespace System::Collections::Generic;
 using namespace System::Threading;
@@ -29,6 +30,8 @@ public:
 
     f64 GetFps();
 
+    CameraInputController ^GetCameraController();
+
 private:
     void UpdateThreadMain();
 
@@ -48,4 +51,6 @@ private:
     ReaderWriterLockSlim ^m_exitLock;
     ReaderWriterLockSlim ^m_fpsLock;
     f64 m_fps;
+
+    CameraInputController ^m_cameraController;
 };

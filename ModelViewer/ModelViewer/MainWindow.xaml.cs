@@ -38,17 +38,19 @@ namespace ModelViewer
             host.Name = "RenderWindow";
             RegisterName(host.Name, host); // This register is needed or the control can't be found with FindName
             ((Border)FindName("RenderWindowParent")).Child = host;
+
+            host.MessageHook += new HwndSourceHook(_nativeControlWndProc);
         }
 
         public void Initialize()
         {
-            m_fpsLabelTimer = new DispatcherTimer();
-            m_fpsLabelTimer.Interval = TimeSpan.FromSeconds(0.5);
+            m_uiLabelTimer = new DispatcherTimer(DispatcherPriority.Input);
+            m_uiLabelTimer.Interval = TimeSpan.FromSeconds(0.1);
 
             // Initialize desired engine
             InitializeVulkanEngine();
 
-            m_fpsLabelTimer.Start();
+            m_uiLabelTimer.Start();
         }
 
         public void InitializeVulkanEngine()
@@ -66,21 +68,52 @@ namespace ModelViewer
             }
 
             /* Register UI controls */
-            // FPS display
-            Label? fpsLabel = FindName("ID_FPS_TEXT") as Label;
-            if (m_fpsLabelTimer != null && fpsLabel != null)
+            if (m_uiLabelTimer != null)
             {
-                m_fpsLabelTimer.Tick += (object? sender, EventArgs e) =>
+                // FPS display
+                Label? fpsLabel = FindName("ID_FPS_TEXT") as Label;
+                if (fpsLabel != null)
                 {
-                    fpsLabel.Content = m_vulkanEngine.GetFps().ToString("F2");
-                };
+                    m_uiLabelTimer.Tick += (object? sender, EventArgs e) =>
+                    {
+                        fpsLabel.Content = m_vulkanEngine.GetFps().ToString("F2");
+                    };
+                }
+
+                // Camera display
+                Label? cameraLabelX = FindName("ID_CAMERA_POS_X") as Label;
+                if (cameraLabelX != null)
+                {
+                    m_uiLabelTimer.Tick += (object? sender, EventArgs e) =>
+                    {
+                        cameraLabelX.Content = m_vulkanEngine.GetEngineValue("ID_CAMERA_POS_X");
+                    };
+                }
+                Label? cameraLabelY = FindName("ID_CAMERA_POS_Y") as Label;
+                if (cameraLabelY != null)
+                {
+                    m_uiLabelTimer.Tick += (object? sender, EventArgs e) =>
+                    {
+                        cameraLabelY.Content = m_vulkanEngine.GetEngineValue("ID_CAMERA_POS_Y");
+                    };
+                }
+                Label? cameraLabelZ = FindName("ID_CAMERA_POS_Z") as Label;
+                if (cameraLabelZ != null)
+                {
+                    m_uiLabelTimer.Tick += (object? sender, EventArgs e) =>
+                    {
+                        cameraLabelZ.Content = m_vulkanEngine.GetEngineValue("ID_CAMERA_POS_Z");
+                    };
+                }
             }
 
+            m_cameraController = m_vulkanEngine.GetCameraController();
+
             // Initialize and start first scene
-            OnSceneChange();
+            OnSceneChangeVulkan();
         }
 
-        private void OnSceneChange()
+        private void OnSceneChangeVulkan()
         {
             // Initialize UI elements
             ComboBox? polygonMode = FindName("ID_POLYGON_MODE") as ComboBox;
@@ -109,12 +142,128 @@ namespace ModelViewer
                 _setInitialComboBoxValue(cullMode);
                 cullMode.SelectionChanged += _onComboBoxChanged;
             }
+
+            // Initialize camera
+            if (m_cameraController != null)
+            {
+                CheckBox? cameraFixedUp = FindName("ID_CAMERA_FIXED_UP_DIR") as CheckBox;
+                if (cameraFixedUp != null)
+                {
+                    RoutedEventHandler _changed = (object? sender, RoutedEventArgs e) =>
+                    {
+                        m_cameraController.SetFixedUpDir(cameraFixedUp.IsChecked ?? false);
+                    };
+                    cameraFixedUp.Checked += _changed;
+                    cameraFixedUp.Unchecked += _changed;
+                    _changed(cameraFixedUp, null);
+                }
+
+                Slider? cameraSpeed = FindName("ID_CAMERA_SPEED") as Slider;
+                if (cameraSpeed != null)
+                {
+                    RoutedPropertyChangedEventHandler<double> _changed = (object? sender, RoutedPropertyChangedEventArgs<double> e) =>
+                    {
+                        m_cameraController.SetSpeed((float)cameraSpeed.Value);
+                    };
+                    cameraSpeed.ValueChanged += _changed;
+                    _changed(cameraSpeed, null);
+                }
+
+                Slider? cameraFOV = FindName("ID_CAMERA_FOV") as Slider;
+                if (cameraFOV != null)
+                {
+                    RoutedPropertyChangedEventHandler<double> _changed = (object? sender, RoutedPropertyChangedEventArgs<double> e) =>
+                    {
+                        // Note: Technically not thread-safe but FOV is functionally read-only anyway
+                        m_vulkanEngine?.SetEngineValue("ID_CAMERA_FOV", cameraFOV.Value.ToString("F2"));
+                    };
+                    cameraFOV.ValueChanged += _changed;
+                    _changed(cameraFOV, null);
+                }
+
+                Slider? cameraSensitivityX = FindName("ID_CAMERA_SENSITIVITY_X") as Slider;
+                if (cameraSensitivityX != null)
+                {
+                    RoutedPropertyChangedEventHandler<double> _changed = (object? sender, RoutedPropertyChangedEventArgs<double> e) =>
+                    {
+                        m_cameraController.SetSensitivityX((float)cameraSensitivityX.Value);
+                    };
+                    cameraSensitivityX.ValueChanged += _changed;
+                    _changed(cameraSensitivityX, null);
+                }
+
+                Slider? cameraSensitivityY = FindName("ID_CAMERA_SENSITIVITY_Y") as Slider;
+                if (cameraSensitivityY != null)
+                {
+                    RoutedPropertyChangedEventHandler<double> _changed = (object? sender, RoutedPropertyChangedEventArgs<double> e) =>
+                    {
+                        m_cameraController.SetSensitivityY((float)cameraSensitivityY.Value);
+                    };
+                    cameraSensitivityY.ValueChanged += _changed;
+                    _changed(cameraSensitivityY, null);
+                }
+
+                // Setup camera controller keys
+                RenderWindowHost? renderWindow = FindName("RenderWindow") as RenderWindowHost;
+                if (renderWindow != null)
+                {
+                    renderWindow.KeyDown += (object? sender, KeyEventArgs e) =>
+                    {
+                        switch (e.Key)
+                        {
+                            case Key.W:
+                                m_cameraController.SetMovementInputForward(true);
+                                break;
+                            case Key.A:
+                                m_cameraController.SetMovementInputLeft(true);
+                                break;
+                            case Key.S:
+                                m_cameraController.SetMovementInputBackward(true);
+                                break;
+                            case Key.D:
+                                m_cameraController.SetMovementInputRight(true);
+                                break;
+                            case Key.E:
+                                m_cameraController.SetMovementInputUp(true);
+                                break;
+                            case Key.Q:
+                                m_cameraController.SetMovementInputDown(true);
+                                break;
+                        }
+                    };
+                    renderWindow.KeyUp += (object? sender, KeyEventArgs e) =>
+                    {
+                        switch (e.Key)
+                        {
+                            case Key.W:
+                                m_cameraController.SetMovementInputForward(false);
+                                break;
+                            case Key.A:
+                                m_cameraController.SetMovementInputLeft(false);
+                                break;
+                            case Key.S:
+                                m_cameraController.SetMovementInputBackward(false);
+                                break;
+                            case Key.D:
+                                m_cameraController.SetMovementInputRight(false);
+                                break;
+                            case Key.E:
+                                m_cameraController.SetMovementInputUp(false);
+                                break;
+                            case Key.Q:
+                                m_cameraController.SetMovementInputDown(false);
+                                break;
+                        }
+                    };
+                }
+            }
         }
 
         // Engine-specific
         private VulkanRenderEngine? m_vulkanEngine;
+        private CameraInputController? m_cameraController;
 
-        private DispatcherTimer? m_fpsLabelTimer;
+        private DispatcherTimer? m_uiLabelTimer;
 
         private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -137,6 +286,55 @@ namespace ModelViewer
                     m_vulkanEngine?.SetEngineValue(owner.Name, ((KeyValuePair<string, string>)value).Key);
                 }
             }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern int ShowCursor(bool bShow);
+
+        private IntPtr _nativeControlWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            handled = false;
+
+            switch (msg)
+            {
+                // Camera controls
+                case WindowMessageTypes.WM_MOUSEMOVE:
+                    if ((wParam.ToInt32() & WindowMessageTypes.MK_LBUTTON) == WindowMessageTypes.MK_LBUTTON)
+                    {
+                        int xPos = lParam.ToInt32() & 0xFFFF;
+                        int yPos = (lParam.ToInt32() >> 16) & 0xFFFF;
+                        Point screenPos = PointToScreen(new Point(xPos, yPos));
+                        m_cameraController?.SetMousePos((int)screenPos.X, (int)screenPos.Y);
+                    }
+                    break;
+
+                case WindowMessageTypes.WM_LBUTTONDOWN:
+                    if (!(m_cameraController?.IsActive() ?? false))
+                    {
+                        int xPos = lParam.ToInt32() & 0xFFFF;
+                        int yPos = (lParam.ToInt32() >> 16) & 0xFFFF;
+                        Point screenPos = PointToScreen(new Point(xPos, yPos));
+                        m_cameraController?.BeginControl((int)screenPos.X, (int)screenPos.Y);
+                        RenderWindowHost? renderWindow = FindName("RenderWindow") as RenderWindowHost;
+                        renderWindow?.Focus();
+                        ShowCursor(false);
+                    }
+                    break;
+
+                case WindowMessageTypes.WM_LBUTTONUP:
+                    if (m_cameraController?.IsActive() ?? false)
+                    {
+                        int xPos = lParam.ToInt32() & 0xFFFF;
+                        int yPos = (lParam.ToInt32() >> 16) & 0xFFFF;
+                        Point screenPos = PointToScreen(new Point(xPos, yPos));
+                        m_cameraController?.EndControl((int)screenPos.X, (int)screenPos.Y);
+                        Keyboard.ClearFocus();
+                        ShowCursor(true);
+                    }
+                    break;
+            }
+
+            return IntPtr.Zero;
         }
     }
 }

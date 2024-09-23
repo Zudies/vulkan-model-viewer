@@ -51,4 +51,9 @@ void RendererScene_Basic::SetPipelineStateValue(const std::string &pipelineState
     return m_impl->SetPipelineStateValue(pipelineState, pipelineStateValue);
 }
 
+Graphics::Camera *RendererScene_Basic::GetCamera() {
+    ASSERT(m_impl);
+    return m_impl->GetCamera();
+}
+
 } // namespace Vulkan

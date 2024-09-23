@@ -46,7 +46,7 @@ void Camera::MoveGlobal(f32 x, f32 y, f32 z) {
 }
 
 void Camera::MoveLocal(glm::vec3 deltaPos) {
-    glm::vec3 up = glm::cross(m_right, m_forward);
+    glm::vec3 up = glm::cross(m_forward, m_right);
     m_position += (m_right * deltaPos.x) + (up * deltaPos.y) + (m_forward * deltaPos.z);
 }
 

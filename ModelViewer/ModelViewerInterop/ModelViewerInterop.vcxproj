@@ -139,6 +139,7 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\CameraInputController.cpp" />
     <ClCompile Include="source\JsonRequirementsInterop.cpp" />
     <ClCompile Include="source\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -153,6 +154,7 @@
     <ClCompile Include="source\Win32WindowSurfaceInterop.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\CameraInputController.h" />
     <ClInclude Include="source\GraphicsApiInterface.h" />
     <ClInclude Include="source\GraphicsDeviceInterface.h" />
     <ClInclude Include="source\GraphicsEngineToUIInterface.h" />

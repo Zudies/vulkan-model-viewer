@@ -35,6 +35,8 @@ public:
     Graphics::GraphicsError Update(f64 deltaTime);
     Graphics::GraphicsError LateUpdate(f64 deltaTime);
 
+    Graphics::Camera *GetCamera();
+
     std::string GetPipelineStateValue(const std::string &pipelineState);
     void SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue);
 

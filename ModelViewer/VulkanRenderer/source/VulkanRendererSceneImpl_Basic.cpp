@@ -532,6 +532,10 @@ Graphics::GraphicsError RendererSceneImpl_Basic::LateUpdate(f64 deltaTime) {
     return Graphics::GraphicsError::OK;
 }
 
+Graphics::Camera *RendererSceneImpl_Basic::GetCamera() {
+    return &m_camera;
+}
+
 std::string RendererSceneImpl_Basic::GetPipelineStateValue(const std::string &pipelineState) {
     if (pipelineState.empty()) {
         return "";
