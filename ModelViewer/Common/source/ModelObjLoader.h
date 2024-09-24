@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <functional>
 
 namespace Graphics {
 
@@ -62,6 +63,13 @@ public:
     // This will be called once per mesh face
     virtual void WriteMesh(uint32_t meshIndex, uint32_t meshFaceCount, uint32_t vertexIndexCount) = 0;
 
+    // Optional override
+    // Return false if not using hashes to track unique vertices
+    // Otherwise return true and override HashVertex and CompareVertex
+    virtual bool CheckForUniqueVertex() const;
+    virtual size_t HashVertex(void *vertexData) const;
+    virtual bool CompareVertex(void *vertexDataLeft, void *vertexDataRight) const;
+
     // Starts a new mesh, returning the index of the new mesh
     virtual uint32_t AddMesh(uint32_t estimatedDataSize);
 
@@ -92,7 +100,10 @@ protected:
     ModelObjLoader::MeshDataBuffer *m_boundIndexData;
     ModelObjAttributeFetcher *m_attributeFetcher;
 
-    std::unordered_map<size_t, uint32_t> m_uniqueVertices;
+private:
+    size_t _vertexHashFunc(void *vertexData) const;
+    bool _vertexCompFunc(void *vertexDataLhs, void *vertexDataRhs) const;
+    std::unordered_map<void*, uint32_t, std::function<size_t(void*)>, std::function<bool(void*, void*)>> m_uniqueVertices;
 };
 
 } // namespace Graphics

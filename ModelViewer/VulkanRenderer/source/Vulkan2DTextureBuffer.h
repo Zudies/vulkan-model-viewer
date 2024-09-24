@@ -23,6 +23,9 @@ public:
     Vulkan2DTextureBuffer &operator=(Vulkan2DTextureBuffer const &) = delete;
     ~Vulkan2DTextureBuffer();
 
+    Vulkan2DTextureBuffer(Vulkan2DTextureBuffer &&other) noexcept;
+    Vulkan2DTextureBuffer &operator=(Vulkan2DTextureBuffer &&other) noexcept;
+
     Graphics::GraphicsError LoadImageFromFile(std::string const &filePath);
     Graphics::GraphicsError LoadImageFromMemory(void *data, size_t dataSize);
 

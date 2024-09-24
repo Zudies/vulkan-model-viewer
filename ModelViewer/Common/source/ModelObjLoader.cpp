@@ -150,7 +150,10 @@ const void *ModelObjLoader::GetIndexData(uint32_t meshIndex) const {
 ModelObjVertexWriter::ModelObjVertexWriter()
   : m_boundVertexData(nullptr),
     m_boundIndexData(nullptr),
-    m_attributeFetcher(nullptr) {
+    m_attributeFetcher(nullptr),
+    m_uniqueVertices(1,
+        std::bind(&ModelObjVertexWriter::_vertexHashFunc, this, std::placeholders::_1),
+        std::bind(&ModelObjVertexWriter::_vertexCompFunc, this, std::placeholders::_1, std::placeholders::_2)) {
 }
 
 ModelObjVertexWriter::~ModelObjVertexWriter() {
@@ -185,16 +188,20 @@ uint32_t ModelObjVertexWriter::AddVertex(void *vertexData) {
     ModelObjLoader::DataBuffer &vertexBuffer = m_boundVertexData->back();
     ModelObjLoader::DataBuffer &indexBuffer = m_boundIndexData->back();
 
-    // Do a simple hash on the data
-    // TODO: This can technically result in collisions, causing vertices to be missing
-    //       Better solution is to have a templated Vertex type to hash on
-    size_t hashValue = std::hash<std::string_view>{}({ reinterpret_cast<char*>(vertexData), vertexSize });
-
     // Check if this is a new vertex or if it already exists in the buffer somewhere
-    auto foundUniqueVertexIt = m_uniqueVertices.find(hashValue);
-    if (foundUniqueVertexIt == m_uniqueVertices.end()) {
-        uint32_t newIndex = static_cast<uint32_t>(vertexBuffer.size() / vertexSize);
-        foundUniqueVertexIt = m_uniqueVertices.insert(foundUniqueVertexIt, std::make_pair(hashValue, static_cast<uint32_t>(newIndex)));
+    uint32_t newIndex;
+    if (CheckForUniqueVertex()) {
+        auto foundUniqueVertexIt = m_uniqueVertices.find(vertexData);
+        if (foundUniqueVertexIt == m_uniqueVertices.end()) {
+            newIndex = static_cast<uint32_t>(vertexBuffer.size() / vertexSize);
+            foundUniqueVertexIt = m_uniqueVertices.insert(foundUniqueVertexIt, std::make_pair(vertexData, static_cast<uint32_t>(newIndex)));
+            vertexBuffer.insert(vertexBuffer.end(), vertexSize, 0);
+            memcpy(vertexBuffer.data() + (newIndex * vertexSize), vertexData, vertexSize);
+        }
+        newIndex = foundUniqueVertexIt->second;
+    }
+    else {
+        newIndex = static_cast<uint32_t>(vertexBuffer.size() / vertexSize);
         vertexBuffer.insert(vertexBuffer.end(), vertexSize, 0);
         memcpy(vertexBuffer.data() + (newIndex * vertexSize), vertexData, vertexSize);
     }
@@ -203,22 +210,24 @@ uint32_t ModelObjVertexWriter::AddVertex(void *vertexData) {
     indexBuffer.insert(indexBuffer.end(), indexSize, 0);
     switch (indexSize) {
     case 1:
-        *reinterpret_cast<uint8_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = static_cast<uint8_t>(foundUniqueVertexIt->second);
+        *reinterpret_cast<uint8_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = static_cast<uint8_t>(newIndex);
         break;
     case 2:
-        *reinterpret_cast<uint16_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = static_cast<uint16_t>(foundUniqueVertexIt->second);
+        *reinterpret_cast<uint16_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = static_cast<uint16_t>(newIndex);
         break;
     case 4:
-        *reinterpret_cast<uint32_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = foundUniqueVertexIt->second;
+        *reinterpret_cast<uint32_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = newIndex;
         break;
+#if 0
     case 8:
-        *reinterpret_cast<uint64_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = foundUniqueVertexIt->second;
+        *reinterpret_cast<uint64_t*>(indexBuffer.data() + (newIndexBufferIndex * indexSize)) = newIndex;
         break;
+#endif
     default:
         ERROR_MSG(L"Unsupported index buffer type\n");
     }
 
-    return foundUniqueVertexIt->second;
+    return newIndex;
 }
 
 f32 ModelObjVertexWriter::AttributeVertex(uint32_t i) {
@@ -260,6 +269,26 @@ int ModelObjVertexWriter::FaceMaterialId(uint32_t i) {
 
 uint32_t ModelObjVertexWriter::FaceSmoothingGroupId(uint32_t i) {
     return m_attributeFetcher->SmoothingGroupIds->at(i);
+}
+
+bool ModelObjVertexWriter::CheckForUniqueVertex() const {
+    return false;
+}
+
+size_t ModelObjVertexWriter::HashVertex(void*) const {
+    return 0;
+}
+
+bool ModelObjVertexWriter::CompareVertex(void*, void*) const {
+    return false;
+}
+
+size_t ModelObjVertexWriter::_vertexHashFunc(void *vertexData) const {
+    return HashVertex(vertexData);
+}
+
+bool ModelObjVertexWriter::_vertexCompFunc(void *vertexDataLhs, void *vertexDataRhs) const {
+    return CompareVertex(vertexDataLhs, vertexDataRhs);
 }
 
 } // namespace Graphics

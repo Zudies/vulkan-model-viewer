@@ -83,6 +83,9 @@
     <ClInclude Include="source\ModelObjLoader.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\Transform.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -137,6 +140,9 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\ModelObjLoader.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Transform.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

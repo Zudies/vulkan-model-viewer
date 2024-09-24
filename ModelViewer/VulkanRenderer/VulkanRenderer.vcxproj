@@ -108,6 +108,7 @@
     <ClInclude Include="source\VulkanPhysicalDevice.h" />
     <ClInclude Include="source\VulkanRenderer.h" />
     <ClInclude Include="source\VulkanRendererImpl.h" />
+    <ClInclude Include="source\VulkanStaticModelTextured.h" />
     <ClInclude Include="source\VulkanUniformBufferObject.h" />
     <ClInclude Include="source\VulkanVertexBuffer.h" />
   </ItemGroup>
@@ -138,6 +139,7 @@
     <ClCompile Include="source\VulkanSampler.cpp" />
     <ClCompile Include="source\VulkanShaderModule.cpp" />
     <ClCompile Include="source\VulkanSwapChain.cpp" />
+    <ClCompile Include="source\VulkanStaticModelTextured.cpp" />
     <ClCompile Include="source\VulkanUniformBufferObject.cpp" />
     <ClInclude Include="source\VulkanVertexBuffer.tpp">
       <FileType>Document</FileType>

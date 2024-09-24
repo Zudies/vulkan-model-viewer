@@ -96,6 +96,9 @@
     <ClInclude Include="source\VulkanDescriptorSetAllocator.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanStaticModelTextured.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -168,6 +171,9 @@
       <Filter>Source Files\source</Filter>
     </ClCompile>
     <ClCompile Include="source\VulkanDescriptorSetAllocator.cpp">
+      <Filter>Source Files\source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\VulkanStaticModelTextured.cpp">
       <Filter>Source Files\source</Filter>
     </ClCompile>
   </ItemGroup>

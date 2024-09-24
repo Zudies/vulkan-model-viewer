@@ -16,6 +16,28 @@ VulkanBuffer::~VulkanBuffer() {
     Clear();
 }
 
+VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept
+  : m_renderer(other.m_renderer),
+    m_vkBuffer(other.m_vkBuffer),
+    m_vkMemory(other.m_vkMemory),
+    m_mappedMemory(other.m_mappedMemory) {
+    other.m_vkBuffer = VK_NULL_HANDLE;
+    other.m_vkMemory = VK_NULL_HANDLE;
+    other.m_mappedMemory = nullptr;
+}
+
+VulkanBuffer &VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
+    m_renderer = other.m_renderer;
+    m_vkBuffer = other.m_vkBuffer;
+    m_vkMemory = other.m_vkMemory;
+    m_mappedMemory = other.m_mappedMemory;
+    other.m_vkBuffer = VK_NULL_HANDLE;
+    other.m_vkMemory = VK_NULL_HANDLE;
+    other.m_mappedMemory = nullptr;
+
+    return *this;
+}
+
 Graphics::GraphicsError VulkanBuffer::Initialize(VkDeviceSize size, VkBufferUsageFlags usage, uint32_t *queueFamilies, uint32_t queueFamilyCount) {
     ASSERT(!m_vkBuffer);
 

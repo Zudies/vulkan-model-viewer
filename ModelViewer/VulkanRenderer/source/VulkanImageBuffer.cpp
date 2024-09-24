@@ -26,6 +26,26 @@ VulkanImageBuffer::~VulkanImageBuffer() {
     Clear();
 }
 
+VulkanImageBuffer::VulkanImageBuffer(VulkanImageBuffer &&other) noexcept
+  : m_renderer(other.m_renderer),
+    m_imageProperties(other.m_imageProperties),
+    m_vkImage(other.m_vkImage),
+    m_vkMemory(other.m_vkMemory) {
+    other.m_vkImage = VK_NULL_HANDLE;
+    other.m_vkMemory = VK_NULL_HANDLE;
+}
+
+VulkanImageBuffer &VulkanImageBuffer::operator=(VulkanImageBuffer &&other) noexcept {
+    m_renderer = other.m_renderer;
+    m_imageProperties = other.m_imageProperties;
+    m_vkImage = other.m_vkImage;
+    m_vkMemory = other.m_vkMemory;
+    other.m_vkImage = VK_NULL_HANDLE;
+    other.m_vkMemory = VK_NULL_HANDLE;
+
+    return *this;
+}
+
 void VulkanImageBuffer::SetFormat(VkFormat format) {
     m_imageProperties.format = format;
 }

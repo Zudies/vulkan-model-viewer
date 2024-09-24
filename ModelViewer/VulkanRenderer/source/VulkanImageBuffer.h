@@ -14,6 +14,9 @@ public:
     VulkanImageBuffer &operator=(VulkanImageBuffer const &) = delete;
     ~VulkanImageBuffer();
 
+    VulkanImageBuffer(VulkanImageBuffer &&other) noexcept;
+    VulkanImageBuffer &operator=(VulkanImageBuffer &&other) noexcept;
+
     // Required
     void SetFormat(VkFormat format);
     VkFormat GetFormat() const;

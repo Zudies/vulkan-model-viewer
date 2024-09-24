@@ -25,6 +25,27 @@ Vulkan2DTextureBuffer::~Vulkan2DTextureBuffer() {
     }
 }
 
+Vulkan2DTextureBuffer::Vulkan2DTextureBuffer(Vulkan2DTextureBuffer &&other) noexcept
+  : m_renderer(other.m_renderer),
+    m_imageBuffer(std::move(other.m_imageBuffer)),
+    m_stagingBuffer(std::move(other.m_stagingBuffer)),
+    m_imageView(other.m_imageView),
+    m_transferSemaphore(other.m_transferSemaphore) {
+    other.m_imageView = VK_NULL_HANDLE;
+    other.m_transferSemaphore = VK_NULL_HANDLE;
+}
+
+Vulkan2DTextureBuffer &Vulkan2DTextureBuffer::operator=(Vulkan2DTextureBuffer &&other) noexcept {
+    m_renderer = other.m_renderer;
+    m_imageBuffer = std::move(other.m_imageBuffer);
+    m_stagingBuffer = std::move(other.m_stagingBuffer);
+    m_imageView = other.m_imageView;
+    m_transferSemaphore = other.m_transferSemaphore;
+    other.m_imageView = VK_NULL_HANDLE;
+    other.m_transferSemaphore = VK_NULL_HANDLE;
+    return *this;
+}
+
 Graphics::GraphicsError Vulkan2DTextureBuffer::LoadImageFromFile(std::string const &filePath) {
     Graphics::ImageLoader imageLoader;
     if (!imageLoader.LoadImageFromFile(filePath, 4)) {
