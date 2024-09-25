@@ -35,6 +35,22 @@ VulkanSampler::~VulkanSampler() {
     }
 }
 
+VulkanSampler::VulkanSampler(VulkanSampler &&other) noexcept
+  : m_renderer(other.m_renderer),
+    m_sampler(other.m_sampler),
+    m_samplerProperties(other.m_samplerProperties) {
+    other.m_sampler = VK_NULL_HANDLE;
+}
+
+VulkanSampler &VulkanSampler::operator=(VulkanSampler &&other) noexcept {
+    m_renderer = other.m_renderer;
+    m_sampler = other.m_sampler;
+    m_samplerProperties = other.m_samplerProperties;
+    other.m_sampler = VK_NULL_HANDLE;
+
+    return *this;
+}
+
 void VulkanSampler::SetMagFilter(VkFilter magFilter) {
     m_samplerProperties.magFilter = magFilter;
 }

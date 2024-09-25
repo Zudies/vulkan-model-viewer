@@ -12,6 +12,9 @@ public:
     VulkanSampler &operator=(VulkanSampler const &) = delete;
     ~VulkanSampler();
 
+    VulkanSampler(VulkanSampler &&other) noexcept;
+    VulkanSampler &operator=(VulkanSampler &&other) noexcept;
+
     // Default: VK_FILTER_LINEAR
     void SetMagFilter(VkFilter magFilter);
     VkFilter GetMagFilter() const;

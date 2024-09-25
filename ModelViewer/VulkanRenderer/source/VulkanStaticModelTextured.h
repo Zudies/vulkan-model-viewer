@@ -3,12 +3,13 @@
 #include "Transform.h"
 #include "VulkanVertexBuffer.h"
 #include "Vulkan2DTextureBuffer.h"
+#include "VulkanSampler.h"
 #include "VulkanDescriptorSetLayout.h"
 #include "VulkanDescriptorSetInstance.h"
 
 namespace Vulkan {
 
-class RendererImpl;
+class RendererSceneImpl_Basic; // TODO: This should be a generic scene class
 
 // A static model that is textured
 // Each vertex contains a 3D position, normal, RGB color, and UV texture coordinates
@@ -24,7 +25,7 @@ struct VulkanTexturedVertex {
 
 class VulkanStaticModelTextured {
 public:
-    VulkanStaticModelTextured(RendererImpl *renderer);
+    VulkanStaticModelTextured(RendererSceneImpl_Basic *owner);
     VulkanStaticModelTextured(VulkanStaticModelTextured const &) = delete;
     VulkanStaticModelTextured &operator=(VulkanStaticModelTextured const &) = delete;
     ~VulkanStaticModelTextured();
@@ -34,11 +35,15 @@ public:
     Graphics::GraphicsError Draw(f64 deltaTime);
 
 private:
+    RendererSceneImpl_Basic *m_owner;
+
     VulkanVertexBuffer<VulkanTexturedVertex> m_vertexData;
     std::vector<Vulkan2DTextureBuffer> m_materialData;
-    VulkanDescriptorSetLayout m_descriptorSetLayout;
+    std::vector<VulkanSampler> m_samplers;
     VulkanDescriptorSetInstance m_descriptorSet;
     Graphics::Transform m_transform;
+
+    f64 m_accumulatedTime;
 };
 
 } // namespace Vulkan

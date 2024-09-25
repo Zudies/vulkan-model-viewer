@@ -71,10 +71,12 @@ public:
     virtual bool CompareVertex(void *vertexDataLeft, void *vertexDataRight) const;
 
     // Starts a new mesh, returning the index of the new mesh
-    virtual uint32_t AddMesh(uint32_t estimatedDataSize);
+    // maxDataSize must be large to contain the maximum number of vertices that could be written for the mesh
+    virtual uint32_t AddMesh(uint32_t maxDataSize);
 
-    // Attempts to reserve additional memory in the current mesh
-    virtual void ReserveCurrentMesh(uint32_t estimatedDataSize);
+    // Reserves additional memory in the current mesh
+    // The previous max size from AddMesh + maxDataSize should be large enough to contain the maximum number of vertices that could be written for the mesh
+    virtual void ReserveCurrentMesh(uint32_t maxDataSize);
 
     // Adds a vertex to the last created mesh, returning the index of the (new) vertex
     virtual uint32_t AddVertex(void *vertexData);

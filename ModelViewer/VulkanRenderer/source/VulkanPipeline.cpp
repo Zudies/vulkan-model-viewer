@@ -52,6 +52,60 @@ VulkanPipeline::VulkanPipeline(RendererImpl *renderer)
     memset(m_descriptorSetLayouts.data(), 0, sizeof(VkDescriptorSetLayout) * m_descriptorSetLayouts.size());
 }
 
+VulkanPipeline::VulkanPipeline(VulkanPipeline const &other)
+  : m_renderer(other.m_renderer),
+    m_flags(other.m_flags),
+    m_vkPipeline(VK_NULL_HANDLE),
+    m_createFlags(other.m_createFlags),
+    m_shaderEntryFuncNames(other.m_shaderEntryFuncNames),
+    m_shaderStages(other.m_shaderStages),
+    m_vertexBindings(other.m_vertexBindings),
+    m_vertexAttributes(other.m_vertexAttributes),
+    m_inputAssemblyTopology(other.m_inputAssemblyTopology),
+    m_inputAssemblyPrimitiveRestart(other.m_inputAssemblyPrimitiveRestart),
+    m_viewportData(other.m_viewportData),
+    m_scissorData(other.m_scissorData),
+    m_rasterizerState(other.m_rasterizerState),
+    m_multisampleState(other.m_multisampleState),
+    m_depthStencilState(other.m_depthStencilState),
+    m_colorBlendAttachments(other.m_colorBlendAttachments),
+    m_colorBlendState(other.m_colorBlendState),
+    m_dynamicStatesBuffer(other.m_dynamicStatesBuffer),
+    m_renderPass(other.m_renderPass),
+    m_subpassIndex(other.m_subpassIndex),
+    m_descriptorSetLayouts(other.m_descriptorSetLayouts),
+    m_pushConstantRanges(other.m_pushConstantRanges),
+    m_vkPipelineLayout(VK_NULL_HANDLE) {
+}
+
+VulkanPipeline &VulkanPipeline::operator=(VulkanPipeline const &other) {
+    m_renderer = other.m_renderer;
+    m_flags = other.m_flags;
+    m_vkPipeline = VK_NULL_HANDLE;
+    m_createFlags = other.m_createFlags;
+    m_shaderEntryFuncNames = other.m_shaderEntryFuncNames;
+    m_shaderStages = other.m_shaderStages;
+    m_vertexBindings = other.m_vertexBindings;
+    m_vertexAttributes = other.m_vertexAttributes;
+    m_inputAssemblyTopology = other.m_inputAssemblyTopology;
+    m_inputAssemblyPrimitiveRestart = other.m_inputAssemblyPrimitiveRestart;
+    m_viewportData = other.m_viewportData;
+    m_scissorData = other.m_scissorData;
+    m_rasterizerState = other.m_rasterizerState;
+    m_multisampleState = other.m_multisampleState;
+    m_depthStencilState = other.m_depthStencilState;
+    m_colorBlendAttachments = other.m_colorBlendAttachments;
+    m_colorBlendState = other.m_colorBlendState;
+    m_dynamicStatesBuffer = other.m_dynamicStatesBuffer;
+    m_renderPass = other.m_renderPass;
+    m_subpassIndex = other.m_subpassIndex;
+    m_descriptorSetLayouts = other.m_descriptorSetLayouts;
+    m_pushConstantRanges = other.m_pushConstantRanges;
+    m_vkPipelineLayout = VK_NULL_HANDLE;
+
+    return *this;
+}
+
 VulkanPipeline::~VulkanPipeline() {
     ClearResources();
 }

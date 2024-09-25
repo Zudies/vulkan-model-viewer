@@ -1,6 +1,7 @@
 #pragma once
 
 #include "VulkanRenderPass.h"
+#include "VulkanObjectTypes.h"
 #include "VulkanShaderModule.h"
 #include "VulkanVertexBuffer.h"
 #include "VulkanDescriptorSetLayout.h"
@@ -21,6 +22,7 @@ namespace Vulkan {
 
 class RendererImpl;
 class VulkanSwapChain;
+class VulkanStaticModelTextured;
 
 class RendererSceneImpl_Basic {
     static const size_t FRAMES_IN_FLIGHT = 3;
@@ -40,6 +42,20 @@ public:
     std::string GetPipelineStateValue(const std::string &pipelineState);
     void SetPipelineStateValue(const std::string &pipelineState, const std::string &pipelineStateValue);
 
+public:
+    RendererImpl *GetRenderer();
+    VulkanPipeline *GetPipeline(RenderableObjectType type);
+    VulkanDescriptorSetLayout *GetDescriptorSetLayout(RenderableObjectType type);
+    VulkanDescriptorSetAllocator *GetPersistentDescriptorPool();
+
+#pragma region Must be called during an update
+    VulkanDescriptorSetAllocator *GetPerFrameDescriptorPool();
+    VulkanCommandBuffer *GetMainCommandBuffer();
+
+    // Binds the pipeline and sets common dynamic states and descriptor sets
+    void CommandBindPipeline(VulkanCommandBuffer *commandBuffer, VulkanPipeline *pipeline);
+#pragma endregion
+
 private:
     Graphics::GraphicsError _onDestroySwapChain(int idx);
     Graphics::GraphicsError _onCreateSwapChain(int idx);
@@ -47,24 +63,12 @@ private:
     Graphics::GraphicsError _createSwapChainFrameBuffers(VulkanSwapChain &swapChain);
 
 private:
-    struct Vertex {
-        glm::vec3 position;
-        glm::vec3 color;
-        glm::vec2 texCoord;
-
-        static VkVertexInputBindingDescription getBindingDescription();
-        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
-    };
     struct UBO {
         glm::mat4 viewProj;
     };
-    typedef VulkanVertexBuffer<Vertex> BasicObject;
-    BasicObject m_testRenderObject;
-    Vulkan2DTextureBuffer m_testTexture;
-    VulkanSampler m_testSampler;
 
-    VulkanDescriptorSetLayout m_testObjectDescriptorLayout;
-    VulkanDescriptorSetInstance *m_testObjectDescriptorSet[FRAMES_IN_FLIGHT];
+    //TODO: Should have a base object class
+    std::vector<VulkanStaticModelTextured*> m_objects;
 
 private:
 
@@ -75,8 +79,11 @@ private:
     VulkanShaderModule m_vertexShader;
     VulkanShaderModule m_fragmentShader;
     VulkanRenderPass m_renderPass;
-    VulkanPipeline m_pipeline;
     VulkanDepthStencilBuffer m_depthBuffer;
+
+    //TODO: Pipeline should be per-material rather than per-object type
+    std::vector<VulkanDescriptorSetLayout*> m_descriptorSetLayout;
+    std::vector<VulkanPipeline*> m_pipeline;
 
     Graphics::Camera m_camera;
     VulkanDescriptorSetLayout m_perFrameDescriptorSetLayout;
@@ -95,8 +102,6 @@ private:
     VulkanCommandBuffer *m_commandBuffers[FRAMES_IN_FLIGHT];
     SemaphoreArray m_swapChainSemaphores;
     SemaphoreArray m_renderFinishedSemaphores;
-
-    f64 m_accumulatedTime;
 };
 
 } // namespace Vulkan

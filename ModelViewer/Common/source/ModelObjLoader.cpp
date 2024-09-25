@@ -2,8 +2,10 @@
 #include "ModelObjLoader.h"
 #include <filesystem>
 
+#pragma warning( push, 0 )
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tinyobjloader/tiny_obj_loader.h>
+#pragma warning( pop )
 
 namespace Graphics {
 
@@ -163,23 +165,33 @@ uint32_t ModelObjVertexWriter::GetIndexSize() {
     return sizeof(uint32_t);
 }
 
-uint32_t ModelObjVertexWriter::AddMesh(uint32_t estimatedDataSize) {
+uint32_t ModelObjVertexWriter::AddMesh(uint32_t maxDataSize) {
     uint32_t newIndex = static_cast<uint32_t>(m_boundVertexData->size());
 
     auto &newMeshVertex = m_boundVertexData->emplace_back();
     auto &newMeshIndex = m_boundIndexData->emplace_back();
 
-    newMeshVertex.reserve(estimatedDataSize);
-    newMeshIndex.reserve((estimatedDataSize / GetVertexSize()) * GetIndexSize());
+    newMeshVertex.reserve(maxDataSize);
+    newMeshIndex.reserve((maxDataSize / GetVertexSize()) * GetIndexSize());
 
     m_uniqueVertices.clear();
 
     return newIndex;
 }
 
-void ModelObjVertexWriter::ReserveCurrentMesh(uint32_t estimatedDataSize) {
-    m_boundVertexData->back().reserve(m_boundVertexData->back().size() + estimatedDataSize);
-    m_boundIndexData->back().reserve((m_boundIndexData->back().size() + estimatedDataSize / GetVertexSize()) * GetIndexSize());
+void ModelObjVertexWriter::ReserveCurrentMesh(uint32_t maxDataSize) {
+    if (m_boundVertexData->back().capacity() < m_boundVertexData->back().size() + maxDataSize) {
+        m_boundVertexData->back().reserve(m_boundVertexData->back().size() + maxDataSize);
+
+        // Vertex data will have been re-allocated so the current unique vertices keys are invalidated
+        m_uniqueVertices.clear();
+        uint32_t vertexSize = GetVertexSize();
+        uint32_t curIndex = 0;
+        for (size_t i = 0; i < m_boundVertexData->back().size(); i += vertexSize, ++curIndex) {
+            m_uniqueVertices[m_boundVertexData->back().data() + i] = curIndex;
+        }
+    }
+    m_boundIndexData->back().reserve((m_boundIndexData->back().size() + maxDataSize / GetVertexSize()) * GetIndexSize());
 }
 
 uint32_t ModelObjVertexWriter::AddVertex(void *vertexData) {
@@ -194,9 +206,9 @@ uint32_t ModelObjVertexWriter::AddVertex(void *vertexData) {
         auto foundUniqueVertexIt = m_uniqueVertices.find(vertexData);
         if (foundUniqueVertexIt == m_uniqueVertices.end()) {
             newIndex = static_cast<uint32_t>(vertexBuffer.size() / vertexSize);
-            foundUniqueVertexIt = m_uniqueVertices.insert(foundUniqueVertexIt, std::make_pair(vertexData, static_cast<uint32_t>(newIndex)));
             vertexBuffer.insert(vertexBuffer.end(), vertexSize, 0);
             memcpy(vertexBuffer.data() + (newIndex * vertexSize), vertexData, vertexSize);
+            foundUniqueVertexIt = m_uniqueVertices.insert(foundUniqueVertexIt, std::make_pair(reinterpret_cast<void*>(vertexBuffer.data() + (newIndex * vertexSize)), static_cast<uint32_t>(newIndex)));
         }
         newIndex = foundUniqueVertexIt->second;
     }

@@ -223,9 +223,11 @@ namespace ModelViewer
                             case Key.D:
                                 m_cameraController.SetMovementInputRight(true);
                                 break;
+                            case Key.Space:
                             case Key.E:
                                 m_cameraController.SetMovementInputUp(true);
                                 break;
+                            case Key.LeftCtrl:
                             case Key.Q:
                                 m_cameraController.SetMovementInputDown(true);
                                 break;
@@ -247,9 +249,11 @@ namespace ModelViewer
                             case Key.D:
                                 m_cameraController.SetMovementInputRight(false);
                                 break;
+                            case Key.Space:
                             case Key.E:
                                 m_cameraController.SetMovementInputUp(false);
                                 break;
+                            case Key.LeftCtrl:
                             case Key.Q:
                                 m_cameraController.SetMovementInputDown(false);
                                 break;

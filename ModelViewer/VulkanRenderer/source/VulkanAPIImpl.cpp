@@ -40,6 +40,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
             messageType,
             pCallbackData->pMessageIdName,
             pCallbackData->pMessage);
+#ifdef _DEBUG
+        __debugbreak();
+#endif
         break;
 
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:

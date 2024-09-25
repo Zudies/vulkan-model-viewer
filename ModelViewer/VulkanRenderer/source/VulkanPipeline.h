@@ -14,8 +14,8 @@ public:
     // Note: When copying a pipeline, only the state that would not be reset by ClearResources will be copied over
     //       Any resources such as VkPipeline will NOT be copied
     VulkanPipeline(RendererImpl *renderer);
-    VulkanPipeline(VulkanPipeline const &);
-    VulkanPipeline &operator=(VulkanPipeline const &);
+    VulkanPipeline(VulkanPipeline const &other);
+    VulkanPipeline &operator=(VulkanPipeline const &other);
     ~VulkanPipeline();
 
 #pragma region States preserved between calls of ClearResourcces

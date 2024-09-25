@@ -99,6 +99,9 @@
     <ClInclude Include="source\VulkanStaticModelTextured.h">
       <Filter>Source Files\source</Filter>
     </ClInclude>
+    <ClInclude Include="source\VulkanObjectTypes.h">
+      <Filter>Source Files\source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

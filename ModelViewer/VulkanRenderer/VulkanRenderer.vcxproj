@@ -94,6 +94,7 @@
     <ClInclude Include="source\VulkanImageBuffer.h" />
     <ClInclude Include="source\Vulkan2DTextureBuffer.h" />
     <ClInclude Include="source\VulkanMultiBuffer.h" />
+    <ClInclude Include="source\VulkanObjectTypes.h" />
     <ClInclude Include="source\VulkanPipeline.h" />
     <ClInclude Include="source\VulkanRendererScene_Basic.h" />
     <ClInclude Include="source\VulkanRendererSceneImpl_Basic.h" />

@@ -28,8 +28,8 @@ public:
 
     VkVertexInputBindingDescription GetBindingDescription() const;
     const std::vector<VkVertexInputAttributeDescription> &GetAttributeDescription() const;
-    VkBuffer GetVertexDeviceBuffer();
-    VkBuffer GetIndexDeviceBuffer();
+    VkBuffer &GetVertexDeviceBuffer();
+    VkBuffer &GetIndexDeviceBuffer();
 
     // Frees host memory usage once no more device flushes are needed
     void ClearHostResources();

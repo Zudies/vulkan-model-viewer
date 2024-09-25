@@ -81,7 +81,7 @@ Graphics::GraphicsError VulkanBuffer::Allocate(VkMemoryPropertyFlags properties)
     return Graphics::GraphicsError::OK;
 }
 
-void *VulkanBuffer::GetMappedMemory() const {
+void *VulkanBuffer::GetMappedMemory() {
     if (!m_mappedMemory) {
         VkMemoryRequirements memRequirements;
         vkGetBufferMemoryRequirements(m_renderer->GetDevice(), m_vkBuffer, &memRequirements);
@@ -100,11 +100,11 @@ void VulkanBuffer::UnmapMemory() {
     }
 }
 
-VkBuffer VulkanBuffer::GetVkBuffer() const {
+VkBuffer &VulkanBuffer::GetVkBuffer() {
     return m_vkBuffer;
 }
 
-VkDeviceMemory VulkanBuffer::GetVkDeviceMemory() const {
+VkDeviceMemory &VulkanBuffer::GetVkDeviceMemory() {
     return m_vkMemory;
 }
 

@@ -186,12 +186,12 @@ const std::vector<VkVertexInputAttributeDescription> &VulkanVertexBuffer<VertexT
 }
 
 template<class VertexType>
-VkBuffer VulkanVertexBuffer<VertexType>::GetVertexDeviceBuffer() {
+VkBuffer &VulkanVertexBuffer<VertexType>::GetVertexDeviceBuffer() {
     return m_vertexBuffer.GetVkBuffer();
 }
 
 template<class VertexType>
-VkBuffer VulkanVertexBuffer<VertexType>::GetIndexDeviceBuffer() {
+VkBuffer &VulkanVertexBuffer<VertexType>::GetIndexDeviceBuffer() {
     return m_indexBuffer.GetVkBuffer();
 }
 
