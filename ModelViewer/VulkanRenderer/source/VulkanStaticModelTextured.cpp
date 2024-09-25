@@ -7,6 +7,7 @@
 
 #include "ModelObjLoader.h"
 
+#include "glm/gtc/matrix_inverse.hpp"
 #include <filesystem>
 
 namespace Vulkan {
@@ -179,6 +180,10 @@ Graphics::GraphicsError VulkanStaticModelTextured::Draw(f64 deltaTime) {
     m_accumulatedTime += deltaTime;
     //m_transform.SetRotation(0.0f, m_accumulatedTime * glm::radians(90.0f), 0.0f);
 
+    Graphics::Camera *camera = m_owner->GetCamera();
+    glm::mat4x4 modelMatrix = m_transform.GetTransformMatrix();
+    glm::mat4x4 normalMatrix = glm::inverseTranspose(camera->ViewMatrix() * modelMatrix);
+
     VulkanPipeline *pipeline = m_owner->GetPipeline(RENDERABLE_OBJECT_TYPE_STATIC_MODEL_TEXTURED);
     VulkanCommandBuffer *commandBuffer = m_owner->GetMainCommandBuffer();
 
@@ -191,8 +196,8 @@ Graphics::GraphicsError VulkanStaticModelTextured::Draw(f64 deltaTime) {
     vkCmdBindIndexBuffer(commandBuffer->GetVkCommandBuffer(), m_vertexData.GetIndexDeviceBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     // Bind model matrix as a push constant
-    glm::mat4x4 modelMatrix = m_transform.GetTransformMatrix();
     vkCmdPushConstants(commandBuffer->GetVkCommandBuffer(), pipeline->GetVkPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4x4), &modelMatrix);
+    vkCmdPushConstants(commandBuffer->GetVkCommandBuffer(), pipeline->GetVkPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4x4), sizeof(glm::mat4x4), &normalMatrix);
 
     // Bind descriptor sets
     VkDescriptorSet bindDescriptorSets[] = { m_descriptorSet.GetVkDescriptorSet() };

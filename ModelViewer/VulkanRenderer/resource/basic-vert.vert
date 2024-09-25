@@ -1,7 +1,8 @@
 #version 450
 
 layout(push_constant) uniform PushConstants {
-    layout(offset=0) mat4 model;
+    layout(offset=0) mat4 modelMatrix;
+    layout(offset=64) mat4 normalMatrix;
 } pushConstants;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
@@ -18,8 +19,8 @@ layout(location = 1) out vec3 fragNormal;
 layout(location = 2) out vec2 fragTexCoord;
 
 void main() {
-    gl_Position = ubo.viewProj * pushConstants.model * vec4(inPosition, 1.0);
+    gl_Position = ubo.viewProj * pushConstants.modelMatrix * vec4(inPosition, 1.0);
     fragColor = inColor;
-    fragNormal = inNormal;
+    fragNormal = normalize(pushConstants.normalMatrix * vec4(inNormal, 0.0)).xyz;
     fragTexCoord = inTexCoord;
 }

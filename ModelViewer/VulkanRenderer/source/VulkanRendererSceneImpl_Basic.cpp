@@ -183,7 +183,7 @@ Graphics::GraphicsError RendererSceneImpl_Basic::Initialize() {
 
     pipeline->SetDescriptorSet(0, &m_perFrameDescriptorSetLayout);
     pipeline->SetDescriptorSet(1, m_descriptorSetLayout[RENDERABLE_OBJECT_TYPE_STATIC_MODEL_TEXTURED]);
-    pipeline->AddPushConstantRange(0, sizeof(glm::mat4x4), VK_SHADER_STAGE_VERTEX_BIT);
+    pipeline->AddPushConstantRange(0, sizeof(glm::mat4x4) + sizeof(glm::mat4x4), VK_SHADER_STAGE_VERTEX_BIT);
 
     pipeline->SetDepthClampEnable(false);
     pipeline->SetRasterizerDiscardEnable(false);

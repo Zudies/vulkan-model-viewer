@@ -348,7 +348,9 @@ Graphics::GraphicsError Vulkan2DTextureBuffer::_beginGraphicsQueueCommand(Vulkan
 }
 
 Graphics::GraphicsError Vulkan2DTextureBuffer::_endGraphicsQueueCommand(VulkanCommandBuffer *commandBuffer) {
-    (void)commandBuffer;
+    VkFence waitFence = commandBuffer->GetWaitFence();
+    vkWaitForFences(m_renderer->GetDevice(), 1, &waitFence, true, std::numeric_limits<uint64_t>::max());
+
     vkDestroySemaphore(m_renderer->GetDevice(), m_transferSemaphore, VK_NULL_HANDLE);
     return Graphics::GraphicsError::OK;
 }

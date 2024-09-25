@@ -152,7 +152,7 @@ glm::mat4x4 Camera::ViewMatrix() const {
 }
 
 glm::mat4x4 Camera::ProjectionMatrix() const {
-    return glm::perspectiveLH(m_verticalFov, m_aspectRatio, m_near, m_far);
+    return glm::perspective(m_verticalFov, m_aspectRatio, m_near, m_far);
 }
 
 } // namespace Graphics
