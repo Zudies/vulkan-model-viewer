@@ -33,7 +33,7 @@
             </Grid.RowDefinitions>
 
             <TabControl Grid.Row="0">
-                <TabItem Header="General">
+                <TabItem Header="Scene">
                     <Grid ShowGridLines="true">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="1*"/>
@@ -73,36 +73,44 @@
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="7*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="6*"/>
+                                        <ColumnDefinition Width="1*"/>
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">Speed</Label>
-                                    <Slider Name="ID_CAMERA_SPEED" Minimum="0" Maximum="10" Value="5" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="1" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                    <Slider Name="ID_CAMERA_SPEED" Minimum="0" Maximum="10" Value="5" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="1" VerticalAlignment="Center" />
+                                    <TextBox Name="ID_CAMERA_SPEED_TEXTBOX"  VerticalAlignment="Center" Grid.Column="2" />
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="7*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="6*"/>
+                                        <ColumnDefinition Width="1*"/>
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">FOV</Label>
-                                    <Slider Name="ID_CAMERA_FOV" Minimum="60" Maximum="120" Value="78" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="10" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                    <Slider Name="ID_CAMERA_FOV" Minimum="60" Maximum="120" Value="78" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="10" VerticalAlignment="Center" />
+                                    <TextBox Name="ID_CAMERA_FOV_TEXTBOX"  VerticalAlignment="Center" Grid.Column="2" />
                                 </Grid>
                                 <Label>Sensitivity</Label>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="7*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="6*"/>
+                                        <ColumnDefinition Width="1*"/>
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">X</Label>
-                                    <Slider Name="ID_CAMERA_SENSITIVITY_X" Minimum="0" Maximum="50" Value="10" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="5" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                    <Slider Name="ID_CAMERA_SENSITIVITY_X" Minimum="0" Maximum="50" Value="10" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="5" VerticalAlignment="Center" />
+                                    <TextBox Name="ID_CAMERA_SENSITIVITY_X_TEXTBOX"  VerticalAlignment="Center" Grid.Column="2" />
                                 </Grid>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="7*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="6*"/>
+                                        <ColumnDefinition Width="1*"/>
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">Y</Label>
-                                    <Slider Name="ID_CAMERA_SENSITIVITY_Y" Minimum="0" Maximum="50" Value="10" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="5" VerticalAlignment="Center" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="2" />
+                                    <Slider Name="ID_CAMERA_SENSITIVITY_Y" Minimum="0" Maximum="50" Value="10" Grid.Column="1" TickPlacement="BottomRight" TickFrequency="5" VerticalAlignment="Center" />
+                                    <TextBox Name="ID_CAMERA_SENSITIVITY_Y_TEXTBOX"  VerticalAlignment="Center" Grid.Column="2" />
                                 </Grid>
 
                             </StackPanel>

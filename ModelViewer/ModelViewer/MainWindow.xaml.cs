@@ -44,6 +44,12 @@ namespace ModelViewer
 
         public void Initialize()
         {
+            // Allow keyboard focus to clear when clicking on the window and not on any specific element
+            MouseDown += (object sender, MouseButtonEventArgs e) =>
+            {
+                Keyboard.ClearFocus();
+            };
+
             m_uiLabelTimer = new DispatcherTimer(DispatcherPriority.Input);
             m_uiLabelTimer.Interval = TimeSpan.FromSeconds(0.1);
 
@@ -167,6 +173,12 @@ namespace ModelViewer
                     };
                     cameraSpeed.ValueChanged += _changed;
                     _changed(cameraSpeed, null);
+
+                    TextBox? cameraSpeedText = FindName("ID_CAMERA_SPEED_TEXTBOX") as TextBox;
+                    if (cameraSpeedText != null)
+                    {
+                        _bindSliderToTextBox(cameraSpeed, cameraSpeedText, "F2");
+                    }
                 }
 
                 Slider? cameraFOV = FindName("ID_CAMERA_FOV") as Slider;
@@ -179,6 +191,12 @@ namespace ModelViewer
                     };
                     cameraFOV.ValueChanged += _changed;
                     _changed(cameraFOV, null);
+
+                    TextBox? cameraFovText = FindName("ID_CAMERA_FOV_TEXTBOX") as TextBox;
+                    if (cameraFovText != null)
+                    {
+                        _bindSliderToTextBox(cameraFOV, cameraFovText, "F2");
+                    }
                 }
 
                 Slider? cameraSensitivityX = FindName("ID_CAMERA_SENSITIVITY_X") as Slider;
@@ -190,6 +208,12 @@ namespace ModelViewer
                     };
                     cameraSensitivityX.ValueChanged += _changed;
                     _changed(cameraSensitivityX, null);
+
+                    TextBox? cameraSensitivityXText = FindName("ID_CAMERA_SENSITIVITY_X_TEXTBOX") as TextBox;
+                    if (cameraSensitivityXText != null)
+                    {
+                        _bindSliderToTextBox(cameraSensitivityX, cameraSensitivityXText, "F2");
+                    }
                 }
 
                 Slider? cameraSensitivityY = FindName("ID_CAMERA_SENSITIVITY_Y") as Slider;
@@ -201,6 +225,12 @@ namespace ModelViewer
                     };
                     cameraSensitivityY.ValueChanged += _changed;
                     _changed(cameraSensitivityY, null);
+
+                    TextBox? cameraSensitivityYText = FindName("ID_CAMERA_SENSITIVITY_Y_TEXTBOX") as TextBox;
+                    if (cameraSensitivityYText != null)
+                    {
+                        _bindSliderToTextBox(cameraSensitivityY, cameraSensitivityYText, "F2");
+                    }
                 }
 
                 // Setup camera controller keys
@@ -290,6 +320,42 @@ namespace ModelViewer
                     m_vulkanEngine?.SetEngineValue(owner.Name, ((KeyValuePair<string, string>)value).Key);
                 }
             }
+        }
+
+        private void _bindSliderToTextBox(Slider sliderElement, TextBox textElement, String format)
+        {
+            // First set the initial value
+            textElement.Text = sliderElement.Value.ToString(format);
+
+            // On slider changed
+            sliderElement.ValueChanged += (object? sender, RoutedPropertyChangedEventArgs<double> e) =>
+            {
+                textElement.Text = sliderElement.Value.ToString(format);
+            };
+
+            // On text changed
+            textElement.LostKeyboardFocus += (object sender, KeyboardFocusChangedEventArgs e) =>
+            {
+                try
+                {
+                    double numValue = double.Parse(textElement.Text);
+                    sliderElement.Value = numValue;
+                    textElement.Text = sliderElement.Value.ToString(format); // One more set to bound the textbox to the range of the slider
+                }
+                catch (FormatException)
+                {
+                    textElement.Text = sliderElement.Value.ToString(format);
+                }
+            };
+
+            // Clear focus on pressing 'Enter'
+            textElement.KeyDown += (object sender, KeyEventArgs e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    Keyboard.ClearFocus();
+                }
+            };
         }
 
         [DllImport("user32.dll")]
